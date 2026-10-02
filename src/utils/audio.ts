@@ -20,11 +20,14 @@ class SoundManager {
   private initAudioElements(): void {
     if (typeof window !== 'undefined') {
       try {
-        this.bgMusic = new Audio('/audio/bounce-tales-theme.mp3');
+        const baseUrl = import.meta.env.BASE_URL || './';
+        const cleanBase = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
+
+        this.bgMusic = new Audio(`${cleanBase}audio/bounce-tales-theme.mp3`);
         this.bgMusic.loop = true;
         this.bgMusic.volume = 0.45;
 
-        this.deathAudio = new Audio('/audio/bounce-death.mp3');
+        this.deathAudio = new Audio(`${cleanBase}audio/bounce-death.mp3`);
         this.deathAudio.volume = 0.6;
       } catch {
         // Fallback to procedural synth if Audio element fails
