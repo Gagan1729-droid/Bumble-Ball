@@ -150,7 +150,10 @@ class YouTubePlayablesManager {
   public isAudioEnabled(): boolean {
     if (this.isAvailable() && window.ytgame?.system?.isAudioEnabled) {
       try {
-        return window.ytgame.system.isAudioEnabled();
+        const val = window.ytgame.system.isAudioEnabled();
+        if (typeof val === 'boolean') {
+          return val;
+        }
       } catch {
         return true;
       }

@@ -201,8 +201,14 @@ export class MenuScene extends Phaser.Scene {
       pointer.event.stopPropagation();
       const isMuted = soundManager.toggleMute();
       this.soundButtonText.setText(isMuted ? '🔇 Muted' : '🔊 Sound');
-      if (!isMuted) soundManager.playBounce(0.6);
+      if (!isMuted) {
+        soundManager.playBounce(0.6);
+        soundManager.startBgMusic();
+      }
     });
+
+    // Start background music (starts immediately if user already interacted, or on next click/key)
+    soundManager.startBgMusic();
 
     // Global Key Listener to start with Space / Enter
     this.input.keyboard?.on('keydown-SPACE', () => this.startGame());

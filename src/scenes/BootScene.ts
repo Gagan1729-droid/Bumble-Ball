@@ -23,8 +23,21 @@ export class BootScene extends Phaser.Scene {
 
   public create(): void {
     ytPlayables.firstFrameReady();
+    this.dismissLoadingOverlay();
     // Transition smoothly to the main menu screen
     this.scene.start('MenuScene');
+  }
+
+  private dismissLoadingOverlay(): void {
+    if (typeof document !== 'undefined') {
+      const overlay = document.getElementById('loading-overlay');
+      if (overlay) {
+        overlay.classList.add('fade-out');
+        setTimeout(() => {
+          overlay.remove();
+        }, 380);
+      }
+    }
   }
 
   /**

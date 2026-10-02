@@ -18,15 +18,43 @@ class SoundManager {
   constructor() {
     this.initAudioElements();
     this.initYTPlayablesAudio();
+    this.setupUserGestureUnlock();
   }
 
   private initYTPlayablesAudio(): void {
-    if (!ytPlayables.isAudioEnabled()) {
+    // Only mute if YouTube explicitly and strictly returns false
+    if (ytPlayables.isAudioEnabled() === false) {
       this.muted = true;
     }
     ytPlayables.onAudioEnabledChange((enabled) => {
-      this.setMuted(!enabled);
+      if (typeof enabled === 'boolean') {
+        this.setMuted(!enabled);
+      }
     });
+  }
+
+  private setupUserGestureUnlock(): void {
+    if (typeof window === 'undefined') return;
+
+    const unlock = () => {
+      if (this.ctx && this.ctx.state === 'suspended') {
+        this.ctx.resume().catch(() => {});
+      } else if (!this.ctx) {
+        this.getContext();
+      }
+
+      if (this.isMusicPlaying && this.bgMusic && this.bgMusic.paused && !this.muted) {
+        this.bgMusic.play().then(() => {
+          window.removeEventListener('pointerdown', unlock);
+          window.removeEventListener('keydown', unlock);
+          window.removeEventListener('touchstart', unlock);
+        }).catch(() => {});
+      }
+    };
+
+    window.addEventListener('pointerdown', unlock, { passive: true });
+    window.addEventListener('keydown', unlock, { passive: true });
+    window.addEventListener('touchstart', unlock, { passive: true });
   }
 
   private initAudioElements(): void {
@@ -38,6 +66,14 @@ class SoundManager {
         this.bgMusic = new Audio(`${cleanBase}audio/bounce-tales-theme.mp3`);
         this.bgMusic.loop = true;
         this.bgMusic.volume = 0.45;
+
+        // Auto retry with relative path if base URL fails in certain iframe hosts
+        this.bgMusic.addEventListener('error', () => {
+          if (this.bgMusic && !this.bgMusic.src.endsWith('/audio/bounce-tales-theme.mp3')) {
+            this.bgMusic.src = 'audio/bounce-tales-theme.mp3';
+            this.bgMusic.load();
+          }
+        });
 
         this.deathAudio = new Audio(`${cleanBase}audio/bounce-death.mp3`);
         this.deathAudio.volume = 0.6;
@@ -88,10 +124,11 @@ class SoundManager {
     if (this.muted) return;
 
     if (this.bgMusic) {
-      this.bgMusic.currentTime = 0;
-      this.bgMusic.play().catch(() => {
-        // Autoplay policy: will resume on next user interaction
-      });
+      if (this.bgMusic.paused) {
+        this.bgMusic.play().catch(() => {
+          // Autoplay policy: will resume on next user interaction
+        });
+      }
     }
   }
 

@@ -19,7 +19,7 @@ export const gameConfig: Phaser.Types.Core.GameConfig = {
   backgroundColor: '#020617',
   scale: {
     mode: Phaser.Scale.FIT,
-    autoCenter: Phaser.Scale.CENTER_BOTH,
+    autoCenter: Phaser.Scale.NO_CENTER,
     min: {
       width: 320,
       height: 240,
