@@ -19,6 +19,7 @@ export class BootScene extends Phaser.Scene {
     this.createParticleTextures();
     this.createUIHeartTextures();
     this.createParallaxTextures();
+    this.createMechanicTextures();
   }
 
   public create(): void {
@@ -128,21 +129,26 @@ export class BootScene extends Phaser.Scene {
     g.generateTexture('ground-inner', size, size);
     g.clear();
 
-    // 3. Floating Wooden/Stone Platform
-    const pw = 48;
-    const ph = 20;
-    g.fillStyle(0x1e293b, 1);
-    g.fillRoundedRect(0, 0, pw, ph, 4);
-    g.fillStyle(0x334155, 1);
-    g.fillRoundedRect(1, 1, pw - 2, ph - 2, 4);
-    g.fillStyle(0x475569, 1);
-    g.fillRect(2, 2, pw - 4, 3);
-    // Rivets
-    g.fillStyle(0x94a3b8, 1);
-    g.fillCircle(6, ph / 2, 2);
-    g.fillCircle(pw - 6, ph / 2, 2);
-
-    g.generateTexture('platform', pw, ph);
+    // 3. Floating Wooden/Stone Platform (Generate native widths 1 to 6 tiles)
+    for (let w = 1; w <= 6; w++) {
+      const widthPx = w * 48;
+      const gPlat = this.make.graphics({ x: 0, y: 0 });
+      gPlat.fillStyle(0x1e293b, 1);
+      gPlat.fillRoundedRect(0, 0, widthPx, 20, 4);
+      gPlat.fillStyle(0x334155, 1);
+      gPlat.fillRoundedRect(1, 1, widthPx - 2, 18, 4);
+      gPlat.fillStyle(0x475569, 1);
+      gPlat.fillRect(2, 2, widthPx - 4, 3);
+      // Rivets along the bar
+      gPlat.fillStyle(0x94a3b8, 1);
+      for (let rx = 6; rx < widthPx; rx += 48) {
+        gPlat.fillCircle(rx, 10, 2);
+        if (rx + 36 < widthPx) gPlat.fillCircle(rx + 36, 10, 2);
+      }
+      gPlat.generateTexture(`platform-${w}`, widthPx, 20);
+      if (w === 1) gPlat.generateTexture('platform', widthPx, 20);
+      gPlat.destroy();
+    }
     g.destroy();
   }
 
@@ -440,4 +446,198 @@ export class BootScene extends Phaser.Scene {
     gCloud.generateTexture('cloud', 130, 55);
     gCloud.destroy();
   }
+
+  /**
+   * Generates programmatic textures for all progressive mechanics (Levels 2 - 10).
+   */
+  private createMechanicTextures(): void {
+    // 1. Moving Platforms (Generate native widths 1 to 6 tiles)
+    for (let w = 1; w <= 6; w++) {
+      const widthPx = w * 48;
+      const ph = 20;
+      const gMove = this.make.graphics({ x: 0, y: 0 });
+      gMove.fillStyle(0x0f172a, 1);
+      gMove.fillRoundedRect(0, 0, widthPx, ph, 4);
+      gMove.fillStyle(0x1e3a8a, 1);
+      gMove.fillRoundedRect(2, 2, widthPx - 4, ph - 4, 3);
+      // Cyan top glow
+      gMove.fillStyle(0x38bdf8, 1);
+      gMove.fillRect(3, 2, widthPx - 6, 3);
+      // Direction arrows on ends
+      gMove.fillStyle(0x93c5fd, 0.9);
+      gMove.fillTriangle(10, ph / 2, 16, ph / 2 - 4, 16, ph / 2 + 4);
+      gMove.fillTriangle(widthPx - 10, ph / 2, widthPx - 16, ph / 2 - 4, widthPx - 16, ph / 2 + 4);
+      gMove.generateTexture(`moving-platform-${w}`, widthPx, ph);
+      if (w === 1) gMove.generateTexture('moving-platform', widthPx, ph);
+      gMove.destroy();
+
+      // 2. Breakable Block (Generate native widths 1 to 6 tiles)
+      const bh = 24;
+      const gBreak = this.make.graphics({ x: 0, y: 0 });
+      gBreak.fillStyle(0x44403c, 1);
+      gBreak.fillRoundedRect(0, 0, widthPx, bh, 3);
+      gBreak.fillStyle(0x78716c, 1);
+      gBreak.fillRoundedRect(2, 2, widthPx - 4, bh - 4, 2);
+      gBreak.lineStyle(1.5, 0x292524, 0.95);
+      gBreak.beginPath();
+      for (let bx = 0; bx < widthPx; bx += 48) {
+        gBreak.moveTo(bx + 8, 2);
+        gBreak.lineTo(bx + 16, 12);
+        gBreak.lineTo(bx + 24, 8);
+        gBreak.lineTo(bx + 34, 18);
+        gBreak.lineTo(bx + 42, 14);
+        gBreak.moveTo(bx + 16, 12);
+        gBreak.lineTo(bx + 14, 22);
+      }
+      gBreak.strokePath();
+      gBreak.generateTexture(`breakable-block-${w}`, widthPx, bh);
+      if (w === 1) gBreak.generateTexture('breakable-block', widthPx, bh);
+      gBreak.destroy();
+    }
+
+    // 3. Bouncer Trampoline (High-power lime green launcher)
+    const tw = 40;
+    const th = 24;
+    const gBounce = this.make.graphics({ x: 0, y: 0 });
+    // Base plate
+    gBounce.fillStyle(0x14532d, 1);
+    gBounce.fillRoundedRect(2, th - 6, tw - 4, 6, 2);
+    // Green high-power springs
+    gBounce.lineStyle(3, 0x22c55e, 1);
+    gBounce.beginPath();
+    gBounce.moveTo(10, th - 6);
+    gBounce.lineTo(20, th - 11);
+    gBounce.lineTo(10, th - 16);
+    gBounce.lineTo(30, th - 11);
+    gBounce.lineTo(20, th - 16);
+    gBounce.strokePath();
+    // Top bouncy rubber launch plate
+    gBounce.fillStyle(0x16a34a, 1);
+    gBounce.fillRoundedRect(2, 1, tw - 4, 8, 3);
+    gBounce.fillStyle(0x4ade80, 1);
+    gBounce.fillRect(4, 2, tw - 8, 2);
+    // Upward launch chevron
+    gBounce.fillStyle(0xffffff, 0.9);
+    gBounce.fillTriangle(tw / 2, 2, tw / 2 - 5, 7, tw / 2 + 5, 7);
+    gBounce.generateTexture('bouncer', tw, th);
+    gBounce.destroy();
+
+    // 4. Mud Bubble Particle
+    const gMud = this.make.graphics({ x: 0, y: 0 });
+    gMud.fillStyle(0x78350f, 0.85);
+    gMud.fillCircle(4, 4, 4);
+    gMud.fillStyle(0xa16207, 0.6);
+    gMud.fillCircle(3, 3, 2);
+    gMud.generateTexture('mud-bubble', 8, 8);
+    gMud.destroy();
+
+    // 5. Switch (Unpressed: Red dome button)
+    const sw = 32;
+    const sh = 16;
+    const gSwUp = this.make.graphics({ x: 0, y: 0 });
+    gSwUp.fillStyle(0x334155, 1);
+    gSwUp.fillRoundedRect(0, sh - 5, sw, 5, 2);
+    gSwUp.fillStyle(0xef4444, 1);
+    gSwUp.fillRoundedRect(6, 2, sw - 12, 10, 4);
+    gSwUp.fillStyle(0xfca5a5, 0.9);
+    gSwUp.fillCircle(sw / 2 - 2, 6, 2);
+    gSwUp.generateTexture('switch-unpressed', sw, sh);
+    gSwUp.destroy();
+
+    // Switch (Pressed: Flattened green button)
+    const gSwDown = this.make.graphics({ x: 0, y: 0 });
+    gSwDown.fillStyle(0x334155, 1);
+    gSwDown.fillRoundedRect(0, sh - 5, sw, 5, 2);
+    gSwDown.fillStyle(0x10b981, 1);
+    gSwDown.fillRoundedRect(5, sh - 7, sw - 10, 4, 2);
+    gSwDown.fillStyle(0x6ee7b7, 1);
+    gSwDown.fillRect(7, sh - 6, sw - 14, 2);
+    gSwDown.generateTexture('switch-pressed', sw, sh);
+    gSwDown.destroy();
+
+    // 6. Security Gate (Heavy steel barrier with hazard bars)
+    const gw = 32;
+    const gh = 96;
+    const gGate = this.make.graphics({ x: 0, y: 0 });
+    gGate.fillStyle(0x1e293b, 1);
+    gGate.fillRoundedRect(0, 0, gw, gh, 4);
+    gGate.fillStyle(0x334155, 1);
+    gGate.fillRoundedRect(2, 2, gw - 4, gh - 4, 3);
+    // Vertical security bars
+    gGate.fillStyle(0x64748b, 1);
+    gGate.fillRect(6, 6, 4, gh - 12);
+    gGate.fillRect(14, 6, 4, gh - 12);
+    gGate.fillRect(22, 6, 4, gh - 12);
+    // Central lock core
+    gGate.fillStyle(0xef4444, 1);
+    gGate.fillCircle(gw / 2, gh / 2, 7);
+    gGate.fillStyle(0xffffff, 0.95);
+    gGate.fillRect(gw / 2 - 2, gh / 2 - 4, 4, 4);
+    gGate.fillRect(gw / 2 - 3, gh / 2, 6, 5);
+    gGate.generateTexture('gate', gw, gh);
+    gGate.destroy();
+
+    // 7. Patrol Enemy (Spiked iron drone with glowing eye)
+    const ew = 32;
+    const eh = 32;
+    const ecx = ew / 2;
+    const ecy = eh / 2;
+    const gPatrol = this.make.graphics({ x: 0, y: 0 });
+    // 8 Razor spikes
+    gPatrol.fillStyle(0x991b1b, 1);
+    for (let a = 0; a < 8; a++) {
+      const angle = (a * Math.PI) / 4;
+      const sx = ecx + Math.cos(angle) * 14;
+      const sy = ecy + Math.sin(angle) * 14;
+      const tipX = ecx + Math.cos(angle) * 17;
+      const tipY = ecy + Math.sin(angle) * 17;
+      const perpX = -Math.sin(angle) * 4;
+      const perpY = Math.cos(angle) * 4;
+      gPatrol.fillTriangle(tipX, tipY, sx + perpX, sy + perpY, sx - perpX, sy - perpY);
+    }
+    // Main iron sphere
+    gPatrol.fillStyle(0x1e293b, 1);
+    gPatrol.fillCircle(ecx, ecy, 12);
+    gPatrol.fillStyle(0x334155, 1);
+    gPatrol.fillCircle(ecx - 1, ecy - 1, 10);
+    // Glowing red robotic pupil
+    gPatrol.fillStyle(0xef4444, 1);
+    gPatrol.fillCircle(ecx, ecy, 4.5);
+    gPatrol.fillStyle(0xffffff, 0.95);
+    gPatrol.fillCircle(ecx - 1, ecy - 1, 1.5);
+    gPatrol.generateTexture('patrol-enemy', ew, eh);
+    gPatrol.destroy();
+
+    // 8. Crusher Hazard (Industrial steel crusher with hazard warning stripes)
+    const cw = 64;
+    const ch = 48;
+    const gCrush = this.make.graphics({ x: 0, y: 0 });
+    gCrush.fillStyle(0x0f172a, 1);
+    gCrush.fillRoundedRect(0, 0, cw, ch, 4);
+    gCrush.fillStyle(0x334155, 1);
+    gCrush.fillRect(3, 3, cw - 6, ch - 12);
+    // Yellow/Black diagonal hazard stripes
+    gCrush.fillStyle(0xeab308, 1);
+    for (let x = 6; x < cw - 6; x += 14) {
+      gCrush.fillTriangle(x, 6, x + 8, 6, x, 24);
+      gCrush.fillTriangle(x + 8, 6, x + 8, 24, x, 24);
+    }
+    // Heavy teeth along bottom
+    gCrush.fillStyle(0x94a3b8, 1);
+    for (let tx = 4; tx < cw - 4; tx += 11) {
+      gCrush.fillTriangle(tx + 5.5, ch, tx, ch - 8, tx + 11, ch - 8);
+    }
+    gCrush.generateTexture('crusher', cw, ch);
+    gCrush.destroy();
+
+    // 9. Wind Stream Particle (Elongated cyan air gust)
+    const gWind = this.make.graphics({ x: 0, y: 0 });
+    gWind.fillStyle(0x38bdf8, 0.7);
+    gWind.fillRoundedRect(1, 0, 6, 16, 3);
+    gWind.fillStyle(0xffffff, 0.85);
+    gWind.fillRoundedRect(2, 2, 4, 10, 2);
+    gWind.generateTexture('wind-particle', 8, 16);
+    gWind.destroy();
+  }
 }
+

@@ -4,6 +4,22 @@ import Phaser from 'phaser';
 import { Player, MobileInputState } from '../objects/Player';
 import { soundManager } from '../utils/audio';
 import { ytPlayables } from '../utils/ytPlayables';
+import {
+  getLevelConfig,
+  getTotalLevels,
+  hasNextLevel,
+  ILevelConfig,
+} from '../data/LevelConfig';
+import { MovingPlatform } from '../objects/MovingPlatform';
+import { BreakableBlock } from '../objects/BreakableBlock';
+import { Bouncer } from '../objects/Bouncer';
+import { MudZone } from '../objects/MudZone';
+import { Switch } from '../objects/Switch';
+import { Gate } from '../objects/Gate';
+import { PatrolEnemy } from '../objects/PatrolEnemy';
+import { Crusher } from '../objects/Crusher';
+import { WindZone } from '../objects/WindZone';
+import { GAME_CONFIG } from '../config/gameConstants';
 
 export interface LevelStats {
   score: number;
@@ -15,8 +31,8 @@ export interface LevelStats {
 }
 
 export class GameScene extends Phaser.Scene {
-  public static readonly WORLD_WIDTH: number = 3840;
-  public static readonly WORLD_HEIGHT: number = 600;
+  public currentLevelNumber: number = 1;
+  public currentLevel!: ILevelConfig;
 
   public player!: Player;
   private platforms!: Phaser.Physics.Arcade.StaticGroup;
@@ -24,6 +40,17 @@ export class GameScene extends Phaser.Scene {
   private coins!: Phaser.Physics.Arcade.Group;
   private springs!: Phaser.Physics.Arcade.StaticGroup;
   private portal!: Phaser.Physics.Arcade.Sprite;
+
+  // Progressive Mechanics Containers & Groups
+  private movingPlatforms: MovingPlatform[] = [];
+  private breakableBlocks!: Phaser.Physics.Arcade.StaticGroup;
+  private bouncers!: Phaser.Physics.Arcade.StaticGroup;
+  private mudZones: MudZone[] = [];
+  private switches: Switch[] = [];
+  private gates: Map<string, Gate> = new Map();
+  private patrolEnemies: PatrolEnemy[] = [];
+  private crushers: Crusher[] = [];
+  private windZones: WindZone[] = [];
 
   private bgSky!: Phaser.GameObjects.TileSprite;
   private bgMountains!: Phaser.GameObjects.TileSprite;
@@ -35,37 +62,49 @@ export class GameScene extends Phaser.Scene {
 
   private stats: LevelStats = {
     score: 0,
-    health: 3,
-    maxHealth: 3,
+    health: GAME_CONFIG.PLAYER.INITIAL_HEALTH,
+    maxHealth: GAME_CONFIG.PLAYER.MAX_HEALTH,
     coinsCollected: 0,
     totalCoins: 0,
     startTime: 0,
   };
 
-  // Checkpoints kept strictly as background logic
   private checkpoint: { x: number; y: number } = { x: 120, y: 480 };
-  private checkpointReached: boolean = false;
   private isLevelCompleted: boolean = false;
 
   constructor() {
     super('GameScene');
   }
 
+  public init(data?: { levelNumber?: number }): void {
+    this.currentLevelNumber = data?.levelNumber && data.levelNumber > 0 ? data.levelNumber : 1;
+    this.currentLevel = getLevelConfig(this.currentLevelNumber);
+  }
+
   public create(): void {
+    if (!this.currentLevel) {
+      this.currentLevel = getLevelConfig(this.currentLevelNumber);
+    }
+
     this.isLevelCompleted = false;
-    this.checkpoint = { x: 120, y: 480 };
-    this.checkpointReached = false;
+    this.checkpoint = { ...this.currentLevel.spawnPoint };
     this.stats = {
       score: 0,
-      health: 3,
-      maxHealth: 3,
+      health: GAME_CONFIG.PLAYER.INITIAL_HEALTH,
+      maxHealth: GAME_CONFIG.PLAYER.MAX_HEALTH,
       coinsCollected: 0,
       totalCoins: 0,
       startTime: this.time.now,
     };
 
-    // Configure arcade physics world bounds
-    this.physics.world.setBounds(0, 0, GameScene.WORLD_WIDTH, GameScene.WORLD_HEIGHT);
+    // Configure arcade physics world bounds for current level
+    this.physics.world.setBounds(
+      0,
+      0,
+      this.currentLevel.worldWidth,
+      this.currentLevel.worldHeight + 140
+    );
+    this.physics.world.checkCollision.down = false;
 
     // 1. Build Parallax Background Layers
     this.createParallaxLayers();
@@ -73,10 +112,10 @@ export class GameScene extends Phaser.Scene {
     // 2. Setup Particle Systems
     this.createParticleSystems();
 
-    // 3. Build Level Geometry & Entities
+    // 3. Build Level Geometry & Entities dynamically from LevelConfig
     this.createLevel();
 
-    // 4. Create Player
+    // 4. Create Player at Level's initial spawn point
     this.player = new Player(this, this.checkpoint.x, this.checkpoint.y);
 
     // 5. Setup Collisions and Overlaps
@@ -106,45 +145,75 @@ export class GameScene extends Phaser.Scene {
     this.events.once('shutdown', () => {
       cleanupPause();
       cleanupResume();
+      soundManager.stopBgMusic();
+      this.cleanupMechanicObjects();
     });
 
     // 9. Start Continuous Background Music
     soundManager.startBgMusic();
   }
 
+  private cleanupMechanicObjects(): void {
+    this.movingPlatforms.forEach((p) => p.destroy());
+    this.movingPlatforms = [];
+
+    this.mudZones.forEach((m) => m.destroy());
+    this.mudZones = [];
+
+    this.switches.forEach((s) => s.destroy());
+    this.switches = [];
+
+    this.gates.forEach((g) => g.destroy());
+    this.gates.clear();
+
+    this.patrolEnemies.forEach((e) => e.destroy());
+    this.patrolEnemies = [];
+
+    this.crushers.forEach((c) => c.destroy());
+    this.crushers = [];
+
+    this.windZones.forEach((w) => w.destroy());
+    this.windZones = [];
+  }
+
   private createParallaxLayers(): void {
-    const W = GameScene.WORLD_WIDTH;
-    const H = GameScene.WORLD_HEIGHT;
+    const W = this.currentLevel.worldWidth;
+    const H = this.currentLevel.worldHeight;
+    const theme = this.currentLevel.backgroundTheme;
 
     this.bgSky = this.add.tileSprite(0, 0, this.scale.width, H, 'bg-sky');
     this.bgSky.setOrigin(0, 0).setScrollFactor(0);
+    if (theme?.skyTint) {
+      this.bgSky.setTint(theme.skyTint);
+    }
 
     this.bgMountains = this.add.tileSprite(0, H - 320, W, 320, 'bg-mountains');
     this.bgMountains.setOrigin(0, 0).setScrollFactor(0.15, 1);
+    if (theme?.mountainTint) {
+      this.bgMountains.setTint(theme.mountainTint);
+    }
 
     this.bgTrees = this.add.tileSprite(0, H - 240, W, 240, 'bg-trees');
     this.bgTrees.setOrigin(0, 0).setScrollFactor(0.4, 1);
+    if (theme?.treesTint) {
+      this.bgTrees.setTint(theme.treesTint);
+    }
 
-    const cloudPositions = [
-      { x: 300, y: 100, scale: 1 },
-      { x: 900, y: 140, scale: 0.8 },
-      { x: 1600, y: 90, scale: 1.2 },
-      { x: 2300, y: 130, scale: 0.9 },
-      { x: 3100, y: 110, scale: 1.1 },
-    ];
-
-    cloudPositions.forEach((pos) => {
-      const cloud = this.add.image(pos.x, pos.y, 'cloud');
-      cloud.setScale(pos.scale).setAlpha(0.8).setScrollFactor(0.25, 1);
+    const cloudCount = Math.floor(W / 650);
+    for (let i = 0; i < cloudCount; i++) {
+      const cx = 200 + i * 650 + Math.sin(i * 1.5) * 120;
+      const cy = 70 + (i % 3) * 35;
+      const cloud = this.add.image(cx, cy, 'cloud');
+      cloud.setScale(0.85 + (i % 3) * 0.2).setAlpha(0.8).setScrollFactor(0.25, 1);
       this.tweens.add({
         targets: cloud,
-        x: cloud.x + 60,
-        duration: 8000 + Math.random() * 4000,
+        x: cloud.x + 50,
+        duration: 8000 + (i % 4) * 2000,
         yoyo: true,
         repeat: -1,
         ease: 'Sine.easeInOut',
       });
-    });
+    }
   }
 
   private createParticleSystems(): void {
@@ -177,43 +246,68 @@ export class GameScene extends Phaser.Scene {
     this.portalEmitter.setDepth(10);
   }
 
+  /**
+   * Dynamically constructs the environment and entities parsed from LevelConfig.ts
+   */
   private createLevel(): void {
+    this.cleanupMechanicObjects();
+
     this.platforms = this.physics.add.staticGroup();
     this.spikes = this.physics.add.staticGroup();
     this.coins = this.physics.add.group();
     this.springs = this.physics.add.staticGroup();
+    this.breakableBlocks = this.physics.add.staticGroup();
+    this.bouncers = this.physics.add.staticGroup();
 
-    const H = GameScene.WORLD_HEIGHT;
+    const config = this.currentLevel;
+    const H = config.worldHeight;
 
-    const addGround = (startX: number, endX: number, surfaceY: number) => {
-      const tileSize = 48;
-      for (let x = startX; x < endX; x += tileSize) {
-        this.platforms.create(x + tileSize / 2, surfaceY + tileSize / 2, 'ground');
-        for (let y = surfaceY + tileSize; y < H; y += tileSize) {
-          this.platforms.create(x + tileSize / 2, y + tileSize / 2, 'ground-inner');
+    // 1. Spawn Ground Spans
+    const tileSize = GAME_CONFIG.PHYSICS.TILE_SIZE;
+    config.groundSpans.forEach((span) => {
+      for (let x = span.startX; x < span.endX; x += tileSize) {
+        // Top surface tile provides solid collision
+        this.platforms.create(x + tileSize / 2, span.surfaceY + tileSize / 2, 'ground');
+        // Subsurface soil is rendered as display images only to prevent player getting stuck
+        for (let y = span.surfaceY + tileSize; y < H; y += tileSize) {
+          this.add.image(x + tileSize / 2, y + tileSize / 2, 'ground-inner');
         }
       }
-    };
+    });
 
-    const addPlatform = (x: number, y: number, widthTiles: number = 2) => {
-      for (let i = 0; i < widthTiles; i++) {
-        this.platforms.create(x + i * 48, y, 'platform');
+    // 2. Spawn Static Platforms (Solid floating bars: cannot cross from bottom, sides, or top)
+    config.platforms?.forEach((p) => {
+      const width = p.widthTiles || 2;
+      const textureKey = this.textures.exists(`platform-${width}`) ? `platform-${width}` : 'platform';
+      const centerX = p.x + ((width - 1) * tileSize) / 2;
+      const plat = this.platforms.create(centerX, p.y, textureKey) as Phaser.Physics.Arcade.Sprite;
+      const pBody = plat.body as Phaser.Physics.Arcade.StaticBody;
+      if (pBody) {
+        // FULL SOLID 4-SIDED COLLISION: Solid bar that blocks from bottom, sides, and top
+        pBody.checkCollision.none = false;
+        pBody.checkCollision.up = true;
+        pBody.checkCollision.down = true;
+        pBody.checkCollision.left = true;
+        pBody.checkCollision.right = true;
       }
-    };
+    });
 
-    const addSpikes = (startX: number, count: number, y: number) => {
+    // 3. Spawn Spikes
+    config.spikes?.forEach((s) => {
+      const count = s.count || 1;
       for (let i = 0; i < count; i++) {
-        const spike = this.spikes.create(startX + i * 36 + 18, y - 18, 'spike') as Phaser.Physics.Arcade.Sprite;
+        const spike = this.spikes.create(s.x + i * 36 + 18, s.y - 18, 'spike') as Phaser.Physics.Arcade.Sprite;
         const spikeBody = spike.body as Phaser.Physics.Arcade.StaticBody;
         if (spikeBody) {
           spikeBody.setSize(28, 20);
           spikeBody.setOffset(4, 16);
         }
       }
-    };
+    });
 
-    const addCoin = (x: number, y: number) => {
-      const coin = this.coins.create(x, y, 'coin') as Phaser.Physics.Arcade.Sprite;
+    // 4. Spawn Coins
+    config.coins?.forEach((c) => {
+      const coin = this.coins.create(c.x, c.y, 'coin') as Phaser.Physics.Arcade.Sprite;
       const coinBody = coin.body as Phaser.Physics.Arcade.Body;
       if (coinBody) {
         coinBody.setAllowGravity(false);
@@ -221,86 +315,99 @@ export class GameScene extends Phaser.Scene {
       }
       this.tweens.add({
         targets: coin,
-        y: y - 6,
+        y: c.y - 6,
         duration: 1200 + Math.random() * 400,
         yoyo: true,
         repeat: -1,
         ease: 'Sine.easeInOut',
       });
       this.stats.totalCoins++;
-    };
+    });
 
-    const addSpring = (x: number, y: number) => {
-      const spring = this.springs.create(x, y, 'spring') as Phaser.Physics.Arcade.Sprite;
+    // 5. Spawn Springs
+    config.springs?.forEach((sp) => {
+      const spring = this.springs.create(sp.x, sp.y, 'spring') as Phaser.Physics.Arcade.Sprite;
       const springBody = spring.body as Phaser.Physics.Arcade.StaticBody;
       if (springBody) {
         springBody.setSize(34, 18);
         springBody.setOffset(1, 6);
       }
-    };
+    });
 
-    // SECTION 1: Meadow Start (x: 0 to 680)
-    addGround(0, 680, 528);
-    addCoin(260, 480);
-    addCoin(360, 460);
-    addCoin(460, 440);
-    addPlatform(520, 420, 2);
-    addCoin(544, 380);
+    // 6. Spawn Moving Platforms (Level 2+)
+    config.movingPlatforms?.forEach((mp) => {
+      const moving = new MovingPlatform(
+        this,
+        mp.x,
+        mp.y,
+        mp.widthTiles || 2,
+        mp.distanceX || 0,
+        mp.distanceY || 0,
+        mp.duration || 2500
+      );
+      this.movingPlatforms.push(moving);
+    });
 
-    // SECTION 2: The First Chasm & Stepping Platforms (x: 680 to 1300)
-    addGround(680, 1300, 560);
-    addSpikes(720, 15, 560);
-    addPlatform(720, 440, 2);
-    addCoin(744, 390);
-    addPlatform(880, 360, 2);
-    addCoin(904, 310);
-    addPlatform(1040, 320, 2);
-    addCoin(1064, 270);
-    addPlatform(1180, 390, 2);
-    addCoin(1204, 340);
+    // 7. Spawn Breakable Blocks (Level 3+)
+    config.breakableBlocks?.forEach((bb) => {
+      const block = new BreakableBlock(this, bb.x, bb.y, bb.widthTiles || 1);
+      this.breakableBlocks.add(block);
+    });
 
-    // SECTION 3: Spring Launch Meadow (x: 1300 to 1840)
-    addGround(1300, 1840, 528);
-    addSpring(1440, 516);
-    addPlatform(1440, 240, 3);
-    addCoin(1464, 190);
-    addCoin(1512, 190);
-    addCoin(1560, 190);
-    addCoin(1680, 480);
-    addCoin(1760, 480);
+    // 8. Spawn Bouncers (Level 4+)
+    config.bouncers?.forEach((bc) => {
+      const bouncer = new Bouncer(this, bc.x, bc.y, bc.powerMultiplier || 2.5);
+      this.bouncers.add(bouncer);
+    });
 
-    // SECTION 4: Midpoint Checkpoint (Background logic) & Fortress (x: 1840 to 2440)
-    addGround(1840, 2100, 528);
-    addGround(2100, 2440, 460);
-    addSpikes(2140, 3, 460);
-    addPlatform(2260, 360, 2);
-    addCoin(2284, 310);
-    addSpikes(2340, 2, 460);
+    // 9. Spawn Mud Zones (Level 5+)
+    config.mudZones?.forEach((mz) => {
+      const mud = new MudZone(this, mz.x, mz.y, mz.width, mz.height);
+      this.mudZones.push(mud);
+    });
 
-    // SECTION 5: The Grand Spiked Canyon (x: 2440 to 3100)
-    addGround(2440, 3120, 560);
-    addSpikes(2460, 17, 560);
-    addPlatform(2520, 410, 2);
-    addCoin(2544, 360);
-    addPlatform(2680, 340, 2);
-    addSpring(2704, 328);
-    addCoin(2780, 180);
-    addCoin(2840, 150);
-    addCoin(2900, 180);
-    addPlatform(2960, 360, 2);
-    addCoin(2984, 310);
+    // 10. Spawn Gates & Switches (Level 6+)
+    config.gates?.forEach((g) => {
+      const gate = new Gate(this, g.x, g.y, g.id, g.height || 96);
+      this.gates.set(g.id, gate);
+    });
 
-    // SECTION 6: The Final Mountain Ascent (x: 3120 to 3840)
-    addGround(3120, 3840, 528);
-    addGround(3300, 3840, 460);
-    addSpikes(3340, 3, 460);
-    addPlatform(3440, 380, 2);
-    addCoin(3464, 330);
-    addGround(3560, 3840, 390);
-    addCoin(3620, 340);
+    config.switches?.forEach((sw) => {
+      const plate = new Switch(this, sw.x, sw.y, sw.id, (switchId) => {
+        this.handleSwitchActivated(switchId);
+      });
+      this.switches.push(plate);
+    });
 
-    // GOAL PORTAL
-    this.portal = this.physics.add.sprite(3720, 340, 'portal');
+    // 11. Spawn Patrol Enemies (Level 7+)
+    config.patrolEnemies?.forEach((pe) => {
+      const enemy = new PatrolEnemy(this, pe.x, pe.y, pe.patrolDistance, pe.speed || 90);
+      this.patrolEnemies.push(enemy);
+    });
+
+    // 12. Spawn Crushers (Level 8+)
+    config.crushers?.forEach((cr) => {
+      const crusher = new Crusher(
+        this,
+        cr.x,
+        cr.y,
+        cr.dropDistance,
+        cr.upWait,
+        cr.dropDuration,
+        cr.downWait,
+        cr.riseDuration
+      );
+      this.crushers.push(crusher);
+    });
+
+    // 13. Spawn Wind Zones (Level 9+)
+    config.windZones?.forEach((wz) => {
+      const wind = new WindZone(this, wz.x, wz.y, wz.width, wz.height, wz.forceY || -1400);
+      this.windZones.push(wind);
+    });
+
+    // 14. Goal Portal
+    this.portal = this.physics.add.sprite(config.portal.x, config.portal.y, 'portal');
     const portalBody = this.portal.body as Phaser.Physics.Arcade.Body;
     if (portalBody) {
       portalBody.setAllowGravity(false);
@@ -318,17 +425,73 @@ export class GameScene extends Phaser.Scene {
       ease: 'Sine.easeInOut',
     });
 
-    this.portalEmitter.setPosition(this.portal.x, this.portal.y);
+    this.portalEmitter.setPosition(config.portal.x, config.portal.y);
+  }
+
+  private handleSwitchActivated(switchId: string): void {
+    const gate = this.gates.get(switchId);
+    if (gate && !gate.isOpen) {
+      // Brief screen shake and gate opening
+      this.triggerScreenShake(140, 0.008);
+      gate.open();
+
+      // Sparkle feedback
+      if (this.coinSparkleEmitter) {
+        this.coinSparkleEmitter.emitParticleAt(gate.x, gate.y, 25);
+      }
+    }
   }
 
   private setupPhysicsInteractions(): void {
+    // 1. Solid platforms & Breakable blocks
     this.physics.add.collider(this.player, this.platforms);
 
-    // Spikes hazard overlap passing specific spike object
+    this.physics.add.collider(this.player, this.breakableBlocks, (_player, blockObj) => {
+      const block = blockObj as BreakableBlock;
+      block.triggerBreak();
+    });
+
+    // 2. Gates (Solid while closed)
+    this.gates.forEach((gate) => {
+      this.physics.add.collider(this.player, gate);
+    });
+
+    // 3. Moving Platforms (Solid surface with native friction)
+    this.movingPlatforms.forEach((mp) => {
+      this.physics.add.collider(this.player, mp);
+    });
+
+    // 4. Bouncers (Super Trampolines)
+    this.physics.add.overlap(this.player, this.bouncers, (_player, bouncerObj) => {
+      const bouncer = bouncerObj as Bouncer;
+      bouncer.triggerBounce(this.player);
+    });
+
+    // 5. Switches (Pressure plates)
+    this.switches.forEach((sw) => {
+      this.physics.add.overlap(this.player, sw, () => {
+        sw.press();
+      });
+    });
+
+    // 6. Hazards: Spikes, Patrol Enemies, Crushers
     this.physics.add.overlap(this.player, this.spikes, (_player, spikeObj) => {
       this.handleHazardHit(spikeObj as Phaser.Physics.Arcade.Sprite);
     });
 
+    this.patrolEnemies.forEach((pe) => {
+      this.physics.add.overlap(this.player, pe, () => {
+        this.handleHazardHit(pe);
+      });
+    });
+
+    this.crushers.forEach((cr) => {
+      this.physics.add.overlap(this.player, cr, () => {
+        this.handleHazardHit(cr);
+      });
+    });
+
+    // 7. Pickups & Springs & Portal
     this.physics.add.overlap(this.player, this.coins, (_player, coinObj) => {
       this.handleCoinCollection(coinObj as Phaser.Physics.Arcade.Sprite);
     });
@@ -344,12 +507,23 @@ export class GameScene extends Phaser.Scene {
 
   private setupCamera(): void {
     const cam = this.cameras.main;
-    cam.setBounds(0, 0, GameScene.WORLD_WIDTH, GameScene.WORLD_HEIGHT);
+    cam.setBounds(0, 0, this.currentLevel.worldWidth, this.currentLevel.worldHeight);
     cam.startFollow(this.player, true, 0.08, 0.08);
     cam.setDeadzone(120, 80);
   }
 
+  public triggerScreenShake(duration: number = 180, intensity: number = 0.014): void {
+    if (this.cameras?.main) {
+      this.cameras.main.shake(duration, intensity);
+    }
+  }
+
   private setupUIEvents(): void {
+    this.events.emit('updateLevel', {
+      levelNumber: this.currentLevelNumber,
+      levelName: this.currentLevel.title,
+      totalLevels: getTotalLevels(),
+    });
     this.events.emit('updateScore', {
       score: this.stats.score,
       coinsCollected: this.stats.coinsCollected,
@@ -371,36 +545,95 @@ export class GameScene extends Phaser.Scene {
   public update(time: number, delta: number): void {
     if (!this.player) return;
 
+    // 1. Advance moving platforms physics motion
+    this.movingPlatforms.forEach((mp) => mp.update());
+
+    // 2. Moving platform rider carrier
+    const playerBody = this.player.body as Phaser.Physics.Arcade.Body;
+    if (playerBody && (playerBody.touching.down || playerBody.blocked.down)) {
+      for (const mp of this.movingPlatforms) {
+        const mpBody = mp.body as Phaser.Physics.Arcade.Body;
+        if (!mpBody) continue;
+        const halfW = (mp.displayWidth || mp.width) / 2;
+        const halfH = (mp.displayHeight || mp.height) / 2;
+        if (
+          this.player.x >= mp.x - halfW - 4 &&
+          this.player.x <= mp.x + halfW + 4 &&
+          Math.abs(this.player.y + 15 - (mp.y - halfH)) <= 8
+        ) {
+          if (mpBody.velocity.x !== 0) {
+            const dx = (mpBody.velocity.x * delta) / 1000;
+            this.player.x += dx;
+            playerBody.position.x += dx;
+          }
+          if (mpBody.velocity.y !== 0) {
+            const dy = (mpBody.velocity.y * delta) / 1000;
+            this.player.y += dy;
+            playerBody.position.y += dy;
+          }
+          break;
+        }
+      }
+    }
+
+    // Update patrol enemies movement
+    this.patrolEnemies.forEach((pe) => pe.update());
+
+    // Update Mud Zones overlap check
+    const pBounds = this.player.getBounds();
+    this.mudZones.forEach((mz) => {
+      const mBounds = mz.getBounds();
+      if (Phaser.Geom.Intersects.RectangleToRectangle(pBounds, mBounds)) {
+        this.player.setInMud(true);
+      }
+    });
+
+    // Update Wind Zones overlap check
+    this.windZones.forEach((wz) => {
+      const wBounds = wz.getBounds();
+      if (Phaser.Geom.Intersects.RectangleToRectangle(pBounds, wBounds)) {
+        this.player.applyWind(wz.forceY);
+      }
+    });
+
+    // Update Player logic
     this.player.update(time, delta);
 
     if (this.isLevelCompleted) return;
 
-    // Silent background checkpoint logic
-    if (!this.checkpointReached && this.player.x >= 1880) {
-      this.checkpointReached = true;
-      this.checkpoint = { x: 1880, y: 480 };
+    // Checkpoints update
+    if (this.currentLevel.checkpoints) {
+      for (const cp of this.currentLevel.checkpoints) {
+        if (this.player.x >= cp.triggerX && this.checkpoint.x < cp.spawn.x) {
+          this.checkpoint = { ...cp.spawn };
+        }
+      }
     }
 
-    // Abyss pit fall check
-    if (!this.player.isDying && this.player.y > GameScene.WORLD_HEIGHT + 40) {
+    // Abyss pit fall check: catches drops into bottomless chasms
+    if (!this.player.isDying && this.player.y >= this.currentLevel.worldHeight - 10) {
       this.handleAbyssFall();
     }
 
-    const progress = (this.player.x - 120) / (3720 - 120);
+    // Progress bar tracking
+    const startX = this.currentLevel.spawnPoint.x;
+    const endX = this.currentLevel.portal.x;
+    const progress = (this.player.x - startX) / (endX - startX);
     this.events.emit('updateProgress', { progress });
   }
 
-  /**
-   * Handles player colliding with a spike prick:
-   * Action is disabled for that moment showing the sad bounce, then restarts at previous checkpoint!
-   */
   private handleHazardHit(hazardObj?: Phaser.Physics.Arcade.Sprite): void {
-    if (this.player.isInvulnerable() || this.player.isActionDisabled || this.isLevelCompleted || this.player.isDying) return;
+    if (
+      this.player.isInvulnerable() ||
+      this.player.isActionDisabled ||
+      this.isLevelCompleted ||
+      this.player.isDying
+    )
+      return;
 
-    // Camera shake and flash
-    this.cameras.main.shake(180, 0.012);
-    this.cameras.main.flash(160, 225, 29, 72, true);
-    this.hazardEmitter.emitParticleAt(this.player.x, this.player.y, 14);
+    this.triggerScreenShake(220, 0.022);
+    this.cameras.main.flash(180, 225, 29, 72, true);
+    this.hazardEmitter.emitParticleAt(this.player.x, this.player.y, 16);
 
     this.stats.health--;
     this.events.emit('updateHealth', {
@@ -409,23 +642,18 @@ export class GameScene extends Phaser.Scene {
     });
 
     if (this.stats.health <= 0) {
-      // Game Over: stop bg music and trigger death plunge animation
       soundManager.stopBgMusic();
       this.player.triggerDeathSequence(() => {
         this.events.emit('gameOver', { score: this.stats.score });
       });
     } else {
-      // User's action is disabled for that moment showing the sad bounce at that place,
-      // and then cleanly restarts at the previous checkpoint!
       this.player.playPrickReaction(hazardObj?.x, () => {
+        this.resetLevelMechanics();
         this.player.respawnAtCheckpoint(this.checkpoint.x, this.checkpoint.y);
       });
     }
   }
 
-  /**
-   * Handles player falling into the deep abyss pit.
-   */
   private handleAbyssFall(): void {
     if (this.player.isInvulnerable() || this.player.isActionDisabled || this.player.isDying) return;
 
@@ -442,8 +670,36 @@ export class GameScene extends Phaser.Scene {
       });
     } else {
       soundManager.playHurt();
+      this.resetLevelMechanics();
       this.player.respawnAtCheckpoint(this.checkpoint.x, this.checkpoint.y);
     }
+  }
+
+  /**
+   * Re-brings disappearing breakable blocks and resets interactive level elements
+   * whenever the player hits a prick and respawns, so retry paths are always restored.
+   */
+  private resetLevelMechanics(): void {
+    // 1. Re-bring disappearing breakable blocks
+    this.breakableBlocks.getChildren().forEach((blockObj) => {
+      const block = blockObj as BreakableBlock;
+      block.resetBlock();
+    });
+
+    // 2. Reset moving platforms to start positions
+    this.movingPlatforms.forEach((mp) => {
+      mp.resetPosition();
+    });
+
+    // 3. Reset switches
+    this.switches.forEach((sw) => {
+      sw.resetSwitch();
+    });
+
+    // 4. Reset gates
+    this.gates.forEach((gate) => {
+      gate.resetGate();
+    });
   }
 
   private handleCoinCollection(coin: Phaser.Physics.Arcade.Sprite): void {
@@ -465,7 +721,7 @@ export class GameScene extends Phaser.Scene {
       },
     });
 
-    this.stats.score += 100;
+    this.stats.score += GAME_CONFIG.SCORING.COIN_POINTS;
     this.stats.coinsCollected++;
 
     this.events.emit('updateScore', {
@@ -478,42 +734,28 @@ export class GameScene extends Phaser.Scene {
   private handleSpringHit(spring: Phaser.Physics.Arcade.Sprite): void {
     const playerBody = this.player.body as Phaser.Physics.Arcade.Body;
     if (playerBody.velocity.y > -50 && this.player.y < spring.y + 10) {
-      this.player.launchFromSpring();
-
-      this.tweens.killTweensOf(spring);
-      spring.setScale(1.2, 0.4);
       this.tweens.add({
         targets: spring,
-        scaleX: 1,
-        scaleY: 1,
-        duration: 250,
-        ease: 'Elastic.easeOut',
+        scaleY: 0.45,
+        duration: 80,
+        yoyo: true,
+        ease: 'Quad.easeOut',
       });
+
+      this.player.launchFromSpring(spring.y, GAME_CONFIG.PHYSICS.SPRING_LAUNCH_FORCE);
     }
   }
 
-  /**
-   * Success / Goal Reached Handler:
-   * Ends continuous background music, plays victory fanfare, stops player right at the portal,
-   * displays happy blushing face with inverted 'C' eyes (⌒ ⌒), and ensures face and eyes stay perfectly centered.
-   */
   private handleLevelComplete(): void {
     if (this.isLevelCompleted) return;
     this.isLevelCompleted = true;
 
-    // 1. End continuous background music immediately as requested
     soundManager.stopBgMusic();
-
-    // 2. Play victory fanfare
     soundManager.playVictory();
 
-    // 3. Stop player right at this spot and switch to celebratory happy face
     this.player.setHappyFace();
-
-    // 4. Sparkle emission at portal
     this.coinSparkleEmitter.emitParticleAt(this.portal.x, this.portal.y, 35);
 
-    // 5. Joyful celebration hover tween right in front of portal
     this.tweens.add({
       targets: this.player,
       y: this.player.y - 18,
@@ -522,7 +764,6 @@ export class GameScene extends Phaser.Scene {
       repeat: 1,
       ease: 'Sine.easeInOut',
       onComplete: () => {
-        // Swirl cleanly into the portal
         this.tweens.add({
           targets: this.player,
           x: this.portal.x,
@@ -541,7 +782,11 @@ export class GameScene extends Phaser.Scene {
 
     this.time.delayedCall(1200, () => {
       this.events.emit('levelComplete', {
-        score: this.stats.score + 500,
+        levelNumber: this.currentLevelNumber,
+        levelName: this.currentLevel.title,
+        hasNextLevel: hasNextLevel(this.currentLevelNumber),
+        totalLevels: getTotalLevels(),
+        score: this.stats.score + GAME_CONFIG.SCORING.LEVEL_CLEAR_POINTS,
         coins: this.stats.coinsCollected,
         totalCoins: this.stats.totalCoins,
         timeSec,

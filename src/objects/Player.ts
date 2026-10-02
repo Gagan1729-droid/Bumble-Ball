@@ -2,6 +2,7 @@
 
 import Phaser from 'phaser';
 import { soundManager } from '../utils/audio';
+import { GAME_CONFIG } from '../config/gameConstants';
 
 export interface MobileInputState {
   left: boolean;
@@ -12,12 +13,12 @@ export interface MobileInputState {
 export type PlayerFaceState = 'NORMAL' | 'WAITING' | 'HAPPY' | 'CRYING' | 'HURT';
 
 export class Player extends Phaser.Physics.Arcade.Sprite {
-  // Movement & physics tuning parameters
-  public readonly MOVE_SPEED: number = 240;
-  public readonly ACCELERATION: number = 850;
-  public readonly JUMP_FORCE: number = -490;
-  public readonly SPRING_FORCE: number = -680;
-  public readonly COYOTE_DURATION: number = 140; // ms leniency
+  // Movement & physics tuning parameters from GAME_CONFIG
+  public readonly MOVE_SPEED: number = GAME_CONFIG.PLAYER.MOVE_SPEED;
+  public readonly ACCELERATION: number = GAME_CONFIG.PLAYER.ACCELERATION;
+  public readonly JUMP_FORCE: number = GAME_CONFIG.PLAYER.JUMP_FORCE;
+  public readonly SPRING_FORCE: number = GAME_CONFIG.PHYSICS.SPRING_LAUNCH_FORCE;
+  public readonly COYOTE_DURATION: number = GAME_CONFIG.PLAYER.COYOTE_TIME_MS;
 
   // State management
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
@@ -34,6 +35,12 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   private isJumping: boolean = false;
   private wasGrounded: boolean = false;
   private prevVelocityY: number = 0;
+
+  // Environmental modifier states
+  public inMud: boolean = false;
+  public windForceY: number = 0;
+  public ridingPlatformDeltaX: number = 0;
+  public ridingPlatformDeltaY: number = 0;
 
   // Invulnerability and action disable flags
   private invulnerableUntil: number = 0;
@@ -58,7 +65,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
     // Setup circular arcade body and high restitution
     const body = this.body as Phaser.Physics.Arcade.Body;
-    body.setCircle(16);
+    body.setCircle(15, 1, 1);
     this.setBounce(0.62, 0.62);
     this.setCollideWorldBounds(true);
     this.setDragX(350);
@@ -108,13 +115,48 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.mobileControls = { ...this.mobileControls, ...state };
   }
 
+  public setInMud(value: boolean = true): void {
+    this.inMud = value;
+  }
+
+  public applyWind(forceY: number): void {
+    this.windForceY = forceY;
+  }
+
+  public setRidingDelta(dx: number, dy: number): void {
+    this.ridingPlatformDeltaX = dx;
+    this.ridingPlatformDeltaY = dy;
+  }
+
   /**
-   * PreUpdate guarantees the face graphics are locked to the ball's center
-   * every single engine frame, including during tweens and celebrations.
+   * PreUpdate guarantees face graphics and invulnerability visuals are locked
+   * to the ball's center every engine frame, without reliance on fragile alpha tweens.
    */
   public preUpdate(time: number, delta: number): void {
     super.preUpdate(time, delta);
+    this.updateInvulnerabilityVisuals(time);
     this.updateFace(time);
+  }
+
+  /**
+   * Declarative invulnerability visual handler:
+   * Rapidly blinks during invulnerability, and immediately restores 100% full vibrant color
+   * the instant invulnerability ends or when not active.
+   */
+  private updateInvulnerabilityVisuals(time: number): void {
+    if (this.isDying) return;
+
+    if (this.isInvulnerable()) {
+      // Rapid visual blink between 0.45 and 1.0 while invulnerable
+      const isDim = Math.floor(time / 80) % 2 === 0;
+      this.setAlpha(isDim ? 0.45 : 1);
+    } else {
+      // Ensure player is 100% restored to vibrant normal opacity
+      if (this.alpha !== 1) {
+        this.setAlpha(1);
+      }
+      this.clearTint();
+    }
   }
 
   public update(time: number, delta: number): void {
@@ -154,23 +196,53 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         const impactRatio = Math.min(this.prevVelocityY / 500, 1);
         soundManager.playBounce(impactRatio);
 
-        // Squash on impact without resetting invulnerability
-        this.setScale(1 + impactRatio * 0.35, 1 - impactRatio * 0.3);
+        // Keep squash subtle and strictly symmetric so shape is never distorted,
+        // and avoid Back.easeOut overshooting downward into ground tiles
+        this.scene.tweens.killTweensOf(this);
+        this.setScale(1 + impactRatio * 0.14, 1 - impactRatio * 0.12);
         this.scene.tweens.add({
           targets: this,
           scaleX: 1,
           scaleY: 1,
-          duration: 150,
-          ease: 'Back.easeOut',
+          duration: 120,
+          ease: 'Sine.easeOut',
+          onComplete: () => {
+            this.setScale(1, 1);
+            const b = this.body as Phaser.Physics.Arcade.Body;
+            if (b) b.setCircle(15, 1, 1);
+          },
         });
 
         if (impactRatio > 0.4 && this.dustEmitter) {
-          this.dustEmitter.emitParticleAt(this.x, this.y + 14, 4);
+          const dustCount = Math.min(Math.floor(4 + impactRatio * 4), 8);
+          this.dustEmitter.emitParticleAt(this.x, this.y + 14, dustCount);
         }
       }
     }
     this.wasGrounded = isGrounded;
     this.prevVelocityY = body.velocity.y;
+
+    // Apply riding platform position delta so player stays locked on moving platform
+    if (this.ridingPlatformDeltaX !== 0 || this.ridingPlatformDeltaY !== 0) {
+      this.x += this.ridingPlatformDeltaX;
+      this.y += this.ridingPlatformDeltaY;
+      body.position.x += this.ridingPlatformDeltaX;
+      body.position.y += this.ridingPlatformDeltaY;
+      this.ridingPlatformDeltaX = 0;
+      this.ridingPlatformDeltaY = 0;
+    }
+
+    // Environmental physics tuning: Mud & Wind
+    const currentAccel = this.inMud ? this.ACCELERATION * 0.5 : this.ACCELERATION;
+    const currentDrag = this.inMud ? 850 : 350;
+    const currentJumpForce = this.inMud ? Math.round(this.JUMP_FORCE * 0.6) : this.JUMP_FORCE;
+
+    body.setDragX(currentDrag);
+    body.setAccelerationY(this.windForceY);
+
+    // Reset frame-based environmental flags
+    this.inMud = false;
+    this.windForceY = 0;
 
     // When action is disabled (during prick sad bounce or hurt moment), ignore all user controls
     if (this.isActionDisabled) {
@@ -207,10 +279,10 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
     // Horizontal Movement
     if (moveLeft) {
-      body.setAccelerationX(-this.ACCELERATION);
+      body.setAccelerationX(-currentAccel);
       this.angle -= (Math.abs(body.velocity.x) * delta) / 100;
     } else if (moveRight) {
-      body.setAccelerationX(this.ACCELERATION);
+      body.setAccelerationX(currentAccel);
       this.angle += (Math.abs(body.velocity.x) * delta) / 100;
     } else {
       body.setAccelerationX(0);
@@ -234,7 +306,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
     if (jumpRequested && canJump) {
       this.isJumping = true;
-      body.setVelocityY(this.JUMP_FORCE);
+      body.setVelocityY(currentJumpForce);
       soundManager.playJump();
 
       // Stretch on jump
@@ -415,26 +487,43 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     g.strokePath();
   }
 
-  public launchFromSpring(): void {
+  /**
+   * Smoothly launches the player from a spring without distorting the ball's round shape
+   * or clipping into ground tiles.
+   */
+  public launchFromSpring(springY: number, launchVelocityY: number = -760): void {
     const body = this.body as Phaser.Physics.Arcade.Body;
     if (!body) return;
 
-    body.setVelocityY(this.SPRING_FORCE);
-    this.isJumping = true;
     soundManager.playSpring();
 
-    this.setScale(0.7, 1.35);
+    // Kill any conflicting scale tweens immediately
+    this.scene.tweens.killTweensOf(this);
+
+    // Keep ball pristine and reset scale to perfect round circle
+    this.setScale(1, 1);
+    body.setCircle(15, 1, 1);
+
+    // Ensure ball's bottom is positioned safely above spring top (spring texture is 24px tall)
+    if (this.y > springY - 14) {
+      this.y = springY - 14;
+    }
+
+    body.setVelocityY(launchVelocityY);
+
+    // Subtle momentary vertical spring stretch that immediately returns to (1, 1)
+    this.setScale(0.92, 1.1);
     this.scene.tweens.add({
       targets: this,
       scaleX: 1,
       scaleY: 1,
-      duration: 220,
-      ease: 'Back.easeOut',
+      duration: 160,
+      ease: 'Sine.easeOut',
+      onComplete: () => {
+        this.setScale(1, 1);
+        if (body) body.setCircle(15, 1, 1);
+      },
     });
-
-    if (this.dustEmitter) {
-      this.dustEmitter.emitParticleAt(this.x, this.y + 14, 6);
-    }
   }
 
   /**
@@ -456,61 +545,52 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       body.setAcceleration(0, 0);
     }
 
-    // Squash & Stretch wince
-    this.setScale(1.25, 0.75);
+    // Squash & Stretch wince - always ease cleanly back to 1, 1 with Sine.easeOut
+    this.scene.tweens.killTweensOf(this);
+    this.setScale(1.15, 0.88);
     this.scene.tweens.add({
       targets: this,
       scaleX: 1,
       scaleY: 1,
-      duration: 200,
-      ease: 'Back.easeOut',
+      duration: 180,
+      ease: 'Sine.easeOut',
+      onComplete: () => {
+        this.setScale(1, 1);
+        if (body) body.setCircle(15, 1, 1);
+      },
     });
 
-    // Flashing during the hurt moment
-    this.scene.tweens.add({
-      targets: this,
-      alpha: 0.35,
-      duration: 90,
-      yoyo: true,
-      repeat: 4,
-    });
-
-    // Disable action for 850ms, then restart at checkpoint
-    this.scene.time.delayedCall(850, () => {
+    // Disable action for respawn delay, then restore normal color and restart at checkpoint
+    this.scene.time.delayedCall(GAME_CONFIG.PLAYER.RESPAWN_DELAY_MS, () => {
+      this.setAlpha(1);
+      this.clearTint();
       onComplete();
     });
   }
 
   /**
-   * Restarts at checkpoint: resets position, re-enables user action, and grants 1.2s invulnerability.
+   * Restarts at checkpoint: resets position, re-enables user action, and grants invulnerability window.
    */
   public respawnAtCheckpoint(spawnX: number, spawnY: number): void {
+    this.scene.tweens.killTweensOf(this);
+
     const body = this.body as Phaser.Physics.Arcade.Body;
     if (body) {
       body.setVelocity(0, 0);
       body.setAcceleration(0, 0);
+      body.setCircle(15, 1, 1);
     }
 
     this.setPosition(spawnX, spawnY);
     this.setScale(1, 1);
     this.setAngle(0);
+    this.setAlpha(1);
+    this.clearTint();
     this.isActionDisabled = false;
     this.faceState = 'NORMAL';
 
-    // 1200ms invulnerability
-    this.invulnerableUntil = this.scene.time.now + 1200;
-
-    // Visual invulnerability blinking
-    this.scene.tweens.add({
-      targets: this,
-      alpha: 0.25,
-      duration: 100,
-      yoyo: true,
-      repeat: 5,
-      onComplete: () => {
-        this.setAlpha(1);
-      },
-    });
+    // Set invulnerability duration from GAME_CONFIG
+    this.invulnerableUntil = this.scene.time.now + GAME_CONFIG.PLAYER.INVULNERABILITY_MS;
   }
 
   /**

@@ -14,6 +14,7 @@ export class MenuScene extends Phaser.Scene {
 
   public create(): void {
     ytPlayables.gameReady();
+    soundManager.stopBgMusic();
     const { width, height } = this.scale;
 
     // Background sky and scenery
@@ -203,12 +204,8 @@ export class MenuScene extends Phaser.Scene {
       this.soundButtonText.setText(isMuted ? '🔇 Muted' : '🔊 Sound');
       if (!isMuted) {
         soundManager.playBounce(0.6);
-        soundManager.startBgMusic();
       }
     });
-
-    // Start background music (starts immediately if user already interacted, or on next click/key)
-    soundManager.startBgMusic();
 
     // Global Key Listener to start with Space / Enter
     this.input.keyboard?.on('keydown-SPACE', () => this.startGame());
@@ -221,8 +218,8 @@ export class MenuScene extends Phaser.Scene {
     soundManager.startBgMusic();
     this.cameras.main.fade(220, 15, 23, 42);
     this.cameras.main.once('camerafadeoutcomplete', () => {
-      this.scene.start('GameScene');
-      this.scene.start('UIScene');
+      this.scene.start('GameScene', { levelNumber: 1 });
+      this.scene.start('UIScene', { levelNumber: 1 });
     });
   }
 }
