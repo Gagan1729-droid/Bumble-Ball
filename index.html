@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en" class="h-full bg-slate-950">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Bumble Ball</title>
+    <meta name="description" content="Bumble Ball - A classic red ball physics platformer adventure built with Phaser 4 and TypeScript." />
+    <meta property="og:title" content="Bumble Ball" />
+    <meta property="og:description" content="Bumble Ball - A classic red ball physics platformer adventure built with Phaser 4 and TypeScript." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <style>
+      * {
+        touch-action: manipulation;
+        user-select: none;
+        -webkit-user-select: none;
+      }
+      body {
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        background-color: #020617;
+        width: 100vw;
+        height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      #game-container {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+      }
+      #game-container canvas {
+        display: block;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+        border-radius: 4px;
+      }
+    </style>
+  </head>
+  <body class="h-full w-full overflow-hidden select-none bg-slate-950">
+    <div id="game-container"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
+

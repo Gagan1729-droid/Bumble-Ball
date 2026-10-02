@@ -1,0 +1,6 @@
+{
+  "name": "Bounce Tales Web",
+  "description": "Classic Bounce Tales inspired 2D physics platformer built with Phaser 4 and TypeScript.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
