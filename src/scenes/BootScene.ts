@@ -1,6 +1,7 @@
 // src/scenes/BootScene.ts
 
 import Phaser from 'phaser';
+import { ytPlayables } from '../utils/ytPlayables';
 
 export class BootScene extends Phaser.Scene {
   constructor() {
@@ -21,6 +22,7 @@ export class BootScene extends Phaser.Scene {
   }
 
   public create(): void {
+    ytPlayables.firstFrameReady();
     // Transition smoothly to the main menu screen
     this.scene.start('MenuScene');
   }

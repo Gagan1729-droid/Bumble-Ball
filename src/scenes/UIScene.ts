@@ -2,6 +2,7 @@
 
 import Phaser from 'phaser';
 import { soundManager } from '../utils/audio';
+import { ytPlayables } from '../utils/ytPlayables';
 
 export interface ScoreUpdatePayload {
   score: number;
@@ -356,6 +357,10 @@ export class UIScene extends Phaser.Scene {
     const { width, height } = this.scale;
     this.closeModals();
 
+    // YouTube Playables & local fallback score persistence
+    ytPlayables.sendScore(finalScore);
+    ytPlayables.saveData('last_run', { score: finalScore, date: Date.now() });
+
     this.gameOverContainer = this.add.container(width / 2, height / 2);
 
     const backdrop = this.add.graphics();
@@ -416,6 +421,16 @@ export class UIScene extends Phaser.Scene {
   private showVictory(data: { score: number; coins: number; totalCoins: number; timeSec: number }): void {
     const { width, height } = this.scale;
     this.closeModals();
+
+    // YouTube Playables & local fallback score persistence
+    ytPlayables.sendScore(data.score);
+    ytPlayables.saveData('level_complete', {
+      score: data.score,
+      coins: data.coins,
+      totalCoins: data.totalCoins,
+      timeSec: data.timeSec,
+      date: Date.now(),
+    });
 
     this.victoryContainer = this.add.container(width / 2, height / 2);
 

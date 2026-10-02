@@ -2,6 +2,7 @@
 
 import Phaser from 'phaser';
 import { soundManager } from '../utils/audio';
+import { ytPlayables } from '../utils/ytPlayables';
 
 export class MenuScene extends Phaser.Scene {
   private startPromptText!: Phaser.GameObjects.Text;
@@ -12,6 +13,7 @@ export class MenuScene extends Phaser.Scene {
   }
 
   public create(): void {
+    ytPlayables.gameReady();
     const { width, height } = this.scale;
 
     // Background sky and scenery

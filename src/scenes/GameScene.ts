@@ -3,6 +3,7 @@
 import Phaser from 'phaser';
 import { Player, MobileInputState } from '../objects/Player';
 import { soundManager } from '../utils/audio';
+import { ytPlayables } from '../utils/ytPlayables';
 
 export interface LevelStats {
   score: number;
@@ -87,7 +88,27 @@ export class GameScene extends Phaser.Scene {
     // 7. Connect UI Events & Listeners
     this.setupUIEvents();
 
-    // 8. Start Continuous Background Music
+    // 8. Setup YouTube Playables Pause / Resume Listeners
+    const cleanupPause = ytPlayables.onPause(() => {
+      if (this.scene.isActive('GameScene')) {
+        this.physics.pause();
+        this.player.isActionDisabled = true;
+      }
+    });
+
+    const cleanupResume = ytPlayables.onResume(() => {
+      if (this.scene.isActive('GameScene')) {
+        this.physics.resume();
+        this.player.isActionDisabled = false;
+      }
+    });
+
+    this.events.once('shutdown', () => {
+      cleanupPause();
+      cleanupResume();
+    });
+
+    // 9. Start Continuous Background Music
     soundManager.startBgMusic();
   }
 

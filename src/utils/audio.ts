@@ -6,6 +6,8 @@
  * combined with procedural Web Audio synthesis for responsive sound effects and expressive vocal cues.
  */
 
+import { ytPlayables } from './ytPlayables';
+
 class SoundManager {
   private ctx: AudioContext | null = null;
   private muted: boolean = false;
@@ -15,6 +17,16 @@ class SoundManager {
 
   constructor() {
     this.initAudioElements();
+    this.initYTPlayablesAudio();
+  }
+
+  private initYTPlayablesAudio(): void {
+    if (!ytPlayables.isAudioEnabled()) {
+      this.muted = true;
+    }
+    ytPlayables.onAudioEnabledChange((enabled) => {
+      this.setMuted(!enabled);
+    });
   }
 
   private initAudioElements(): void {
