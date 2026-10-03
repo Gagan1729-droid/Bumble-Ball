@@ -2,6 +2,7 @@
 
 import Phaser from 'phaser';
 import { CurvedTerrainConfig } from '../data/levels/types';
+import { WaterZone } from '../objects/WaterZone';
 
 export interface CurvedTerrainTheme {
   grassColor?: number;
@@ -176,4 +177,149 @@ export function createCurvedTerrain(
   }
 
   return { bodies, graphics };
+}
+
+export interface WaterPoolResult {
+  waterZone: WaterZone;
+  graphics: Phaser.GameObjects.Graphics;
+  bodies: Phaser.Physics.Arcade.Sprite[];
+}
+
+/**
+ * Builds an enclosed sunken water pool with airtight "U"-shaped surrounding terrain
+ * (Left Wall, Right Wall, and Floor) and a perfectly aligned WaterZone.
+ *
+ * Math & Architecture:
+ * - Left Wall: Drops down from surfaceY to surfaceY + poolDepth at [startX - wallThickness, startX].
+ * - Right Wall: Drops down from surfaceY to surfaceY + poolDepth at [startX + poolWidth, startX + poolWidth + wallThickness].
+ * - Floor: Connects the bottom of both walls at surfaceY + poolDepth, spanning from startX - wallThickness to startX + poolWidth + wallThickness.
+ * - WaterZone: Placed inside [startX, startX + poolWidth] x [surfaceY, surfaceY + poolDepth].
+ */
+export function buildWaterPool(
+  scene: Phaser.Scene,
+  platformsGroup: Phaser.Physics.Arcade.StaticGroup,
+  startX: number,
+  surfaceY: number,
+  poolWidth: number,
+  poolDepth: number,
+  title?: string
+): WaterPoolResult {
+  const wallThickness = 48; // 1 tile thickness for solid physical containment
+  const floorThickness = 48;
+  const bottomWorldY = (scene.physics.world.bounds.height || 700) + 120;
+  const bodies: Phaser.Physics.Arcade.Sprite[] = [];
+
+  // 1. LEFT WALL (Solid Static Arcade Physics Body)
+  // Drops down from surfaceY to surfaceY + poolDepth
+  const leftWall = platformsGroup.create(
+    startX - wallThickness / 2,
+    surfaceY + poolDepth / 2,
+    'ground'
+  ) as Phaser.Physics.Arcade.Sprite;
+  leftWall.setVisible(false);
+  const lwBody = leftWall.body as Phaser.Physics.Arcade.StaticBody;
+  if (lwBody) {
+    lwBody.setSize(wallThickness, poolDepth);
+    lwBody.updateFromGameObject();
+  }
+  bodies.push(leftWall);
+
+  // 2. RIGHT WALL (Solid Static Arcade Physics Body)
+  // Placed at startX + poolWidth, dropping down identically
+  const rightWall = platformsGroup.create(
+    startX + poolWidth + wallThickness / 2,
+    surfaceY + poolDepth / 2,
+    'ground'
+  ) as Phaser.Physics.Arcade.Sprite;
+  rightWall.setVisible(false);
+  const rwBody = rightWall.body as Phaser.Physics.Arcade.StaticBody;
+  if (rwBody) {
+    rwBody.setSize(wallThickness, poolDepth);
+    rwBody.updateFromGameObject();
+  }
+  bodies.push(rightWall);
+
+  // 3. BASIN FLOOR (Solid Static Arcade Physics Body)
+  // Flat static platform connecting the bottom of both walls at surfaceY + poolDepth
+  const totalFloorWidth = poolWidth + wallThickness * 2;
+  const floor = platformsGroup.create(
+    startX + poolWidth / 2,
+    surfaceY + poolDepth + floorThickness / 2,
+    'ground'
+  ) as Phaser.Physics.Arcade.Sprite;
+  floor.setVisible(false);
+  const flBody = floor.body as Phaser.Physics.Arcade.StaticBody;
+  if (flBody) {
+    flBody.setSize(totalFloorWidth, floorThickness);
+    flBody.updateFromGameObject();
+  }
+  bodies.push(floor);
+
+  // 4. TERRAIN GRAPHICS (Subsurface slate rock, damp stone masonry, grass/stone lips)
+  const g = scene.add.graphics();
+  g.setDepth(2); // Render behind water (6) and player (10)
+
+  const stoneColor = 0x334155; // Slate rock
+  const darkStoneColor = 0x1e293b;
+  const grassRimColor = 0x15803d;
+  const grassHighlight = 0x22c55e;
+
+  // Outer Bedrock Fill down to bottomWorldY
+  g.fillStyle(darkStoneColor, 1);
+  g.fillRect(startX - wallThickness, surfaceY, wallThickness, bottomWorldY - surfaceY);
+  g.fillRect(startX + poolWidth, surfaceY, wallThickness, bottomWorldY - surfaceY);
+  g.fillRect(startX - wallThickness, surfaceY + poolDepth, totalFloorWidth, bottomWorldY - (surfaceY + poolDepth));
+
+  // Stone masonry / brick detailing along inner walls
+  g.fillStyle(stoneColor, 1);
+  g.fillRect(startX - wallThickness + 4, surfaceY, wallThickness - 4, poolDepth);
+  g.fillRect(startX + poolWidth, surfaceY, wallThickness - 4, poolDepth);
+  g.fillRect(startX, surfaceY + poolDepth, poolWidth, floorThickness);
+
+  // Inner damp stone mortar lines
+  g.lineStyle(2, 0x0f172a, 0.75);
+  for (let y = surfaceY + 24; y < surfaceY + poolDepth; y += 32) {
+    g.beginPath();
+    g.moveTo(startX - wallThickness, y);
+    g.lineTo(startX, y);
+    g.moveTo(startX + poolWidth, y);
+    g.lineTo(startX + poolWidth + wallThickness, y);
+    g.strokePath();
+  }
+
+  // Ancient mossy submerged floor slabs
+  g.fillStyle(0x047857, 0.4);
+  for (let x = startX + 16; x < startX + poolWidth - 16; x += 64) {
+    g.fillRect(x, surfaceY + poolDepth, 48, 6);
+  }
+
+  // Top Grass / Stone Lip on left ground edge (at surfaceY)
+  g.fillStyle(grassRimColor, 1);
+  g.fillRect(startX - wallThickness, surfaceY, wallThickness, 8);
+  g.lineStyle(2, grassHighlight, 0.9);
+  g.beginPath();
+  g.moveTo(startX - wallThickness, surfaceY + 1);
+  g.lineTo(startX, surfaceY + 1);
+  g.strokePath();
+
+  // Top Grass / Stone Lip on right ground edge (at surfaceY)
+  g.fillStyle(grassRimColor, 1);
+  g.fillRect(startX + poolWidth, surfaceY, wallThickness, 8);
+  g.lineStyle(2, grassHighlight, 0.9);
+  g.beginPath();
+  g.moveTo(startX + poolWidth, surfaceY + 1);
+  g.lineTo(startX + poolWidth + wallThickness, surfaceY + 1);
+  g.strokePath();
+
+  // 5. THE WATER ZONE (Instantiated precisely within [startX, surfaceY] x [poolWidth, poolDepth])
+  const waterZone = new WaterZone(
+    scene,
+    startX,
+    surfaceY,
+    poolWidth,
+    poolDepth,
+    title
+  );
+
+  return { waterZone, graphics: g, bodies };
 }

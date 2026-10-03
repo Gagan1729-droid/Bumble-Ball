@@ -120,11 +120,29 @@ export interface WaterZoneConfig {
   title?: string;
 }
 
+export interface PoolConfig {
+  x: number;
+  y: number;
+  width: number;
+  depth: number;
+  title?: string;
+}
+
 export interface MonsterMouthConfig {
   x: number;
   y: number;
   triggerWidth?: number;
   triggerHeight?: number;
+}
+
+export interface SnappingMonsterConfig {
+  x: number;
+  y: number;
+  openDuration?: number;
+  holdOpenTime?: number;
+  snapDuration?: number;
+  holdShutTime?: number;
+  startDelay?: number;
 }
 
 export interface CheckpointConfig {
@@ -149,8 +167,10 @@ export interface ILevelConfig {
   };
   groundSpans: GroundSpan[];
   curvedTerrains?: CurvedTerrainConfig[];
+  pools?: PoolConfig[];
   waterZones?: WaterZoneConfig[];
   monsterMouths?: MonsterMouthConfig[];
+  snappingMonsters?: SnappingMonsterConfig[];
   platforms?: PlatformConfig[];
   spikes?: SpikeConfig[];
   coins?: CoinConfig[];

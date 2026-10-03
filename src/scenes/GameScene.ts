@@ -21,7 +21,8 @@ import { Crusher } from '../objects/Crusher';
 import { WindZone } from '../objects/WindZone';
 import { WaterZone } from '../objects/WaterZone';
 import { MonsterMouth } from '../objects/MonsterMouth';
-import { createCurvedTerrain } from '../utils/LevelGenerator';
+import { SnappingMonster } from '../objects/SnappingMonster';
+import { createCurvedTerrain, buildWaterPool } from '../utils/LevelGenerator';
 import { GAME_CONFIG } from '../config/gameConstants';
 
 export interface LevelStats {
@@ -50,7 +51,9 @@ export class GameScene extends Phaser.Scene {
   private bouncers!: Phaser.Physics.Arcade.StaticGroup;
   private mudZones: MudZone[] = [];
   private waterZones: WaterZone[] = [];
+  private poolGraphics: Phaser.GameObjects.Graphics[] = [];
   private monsterMouths: MonsterMouth[] = [];
+  private snappingMonsters: SnappingMonster[] = [];
   private curvedGraphics: Phaser.GameObjects.Graphics[] = [];
   private switches: Switch[] = [];
   private gates: Map<string, Gate> = new Map();
@@ -184,8 +187,14 @@ export class GameScene extends Phaser.Scene {
     this.waterZones.forEach((w) => w.destroy());
     this.waterZones = [];
 
+    this.poolGraphics.forEach((g) => g.destroy());
+    this.poolGraphics = [];
+
     this.monsterMouths.forEach((m) => m.destroy());
     this.monsterMouths = [];
+
+    this.snappingMonsters.forEach((sm) => sm.destroy());
+    this.snappingMonsters = [];
 
     this.curvedGraphics.forEach((g) => g.destroy());
     this.curvedGraphics = [];
@@ -277,10 +286,18 @@ export class GameScene extends Phaser.Scene {
     const config = this.currentLevel;
     const H = config.worldHeight;
 
-    // 1. Spawn Ground Spans
+    // 1. Spawn Ground Spans (structural gaps carve out space for sunken pools)
     const tileSize = GAME_CONFIG.PHYSICS.TILE_SIZE;
+    const isInsidePoolGap = (x: number) => {
+      return config.pools?.some((p) => x >= p.x && x < p.x + p.width);
+    };
+
     config.groundSpans.forEach((span) => {
       for (let x = span.startX; x < span.endX; x += tileSize) {
+        // Stop the standard flat terrain at x of pool, resume at x + width
+        if (isInsidePoolGap(x)) {
+          continue;
+        }
         // Top surface tile provides solid collision
         this.platforms.create(x + tileSize / 2, span.surfaceY + tileSize / 2, 'ground');
         // Subsurface soil is rendered as display images only to prevent player getting stuck
@@ -436,7 +453,22 @@ export class GameScene extends Phaser.Scene {
       this.curvedGraphics.push(res.graphics);
     });
 
-    // 15. Spawn Water Zones (Level 7+)
+    // 15. Spawn Enclosed Sunken Water Pools (buildWaterPool)
+    config.pools?.forEach((pool) => {
+      const poolResult = buildWaterPool(
+        this,
+        this.platforms,
+        pool.x,
+        pool.y,
+        pool.width,
+        pool.depth,
+        pool.title
+      );
+      this.waterZones.push(poolResult.waterZone);
+      this.poolGraphics.push(poolResult.graphics);
+    });
+
+    // Fallback for legacy waterZones
     config.waterZones?.forEach((wz) => {
       const water = new WaterZone(this, wz.x, wz.y, wz.width, wz.height, wz.title);
       this.waterZones.push(water);
@@ -456,6 +488,40 @@ export class GameScene extends Phaser.Scene {
       // Register the two independent horizontal moving bars so player can stand on and ride them
       this.movingPlatforms.push(mouth.leftPlatform);
       this.movingPlatforms.push(mouth.rightPlatform);
+    });
+
+    /**
+     * SNAPPING MONSTER GAP & APEX ALIGNMENT CALCULATION:
+     *
+     * 1. Player Jump Physics:
+     *    - Initial Jump Velocity: JUMP_FORCE = -430 px/s
+     *    - Gravity: 1000 px/s^2
+     *    - Time to Apex: t_apex = |v_y0| / g = 430 / 1000 = 0.43 s
+     *    - Apex Height: h_apex = v_y0^2 / (2 * g) = 184900 / 2000 = 92.45 px (~92 px)
+     *    - Total Jump Air Time: t_air = 2 * t_apex = 0.86 s
+     *    - Max Horizontal Jump Reach: D_max = MOVE_SPEED (240 px/s) * t_air (0.86 s) = 206.4 px
+     *
+     * 2. Platform Spacing (The Horizontal Gap):
+     *    - The total distance from the edge of the Starting Platform to the edge of the Landing Platform
+     *      must be strictly <= D_max (206.4 px). We use a 160 px gap (within 206.4 px).
+     *    - The SnappingMonster is placed exactly in the dead center of this gap (80 px from each edge).
+     *
+     * 3. Height Alignment:
+     *    - The vertical center of the Monster's mouth is aligned with the apex of the jump arc:
+     *      Monster.Y = Platform.surfaceY - h_apex = Platform.surfaceY - 92 px.
+     *
+     * 4. The Safe Window:
+     *    - Clearance between jaws when fully open = Player.Height + (Player.Height * 1.5) = 30 + 45 = 75 px.
+     */
+    config.snappingMonsters?.forEach((sm) => {
+      const monster = new SnappingMonster(this, sm.x, sm.y, {
+        openDuration: sm.openDuration,
+        holdOpenTime: sm.holdOpenTime,
+        snapDuration: sm.snapDuration,
+        holdShutTime: sm.holdShutTime,
+        startDelay: sm.startDelay,
+      });
+      this.snappingMonsters.push(monster);
     });
 
     // 17. Goal Portal
@@ -540,6 +606,15 @@ export class GameScene extends Phaser.Scene {
     this.crushers.forEach((cr) => {
       this.physics.add.overlap(this.player, cr, () => {
         this.handleHazardHit(cr);
+      });
+    });
+
+    // 6b. Snapping Monster Jaws (Death Mechanic)
+    // If the player collides with either jaw while attempting to jump through,
+    // or gets crushed when the jaws snap shut, trigger death/reset sequence!
+    this.snappingMonsters.forEach((sm) => {
+      this.physics.add.collider(this.player, sm.getJawSprites(), () => {
+        this.handleHazardHit();
       });
     });
 
@@ -697,6 +772,9 @@ export class GameScene extends Phaser.Scene {
     this.waterZones.forEach((wz) => {
       const wBounds = wz.getBounds();
       if (Phaser.Geom.Intersects.RectangleToRectangle(pBounds, wBounds)) {
+        if (!this.player.inWater) {
+          wz.triggerSplash(this.player.x, wz.surfaceY);
+        }
         this.player.setInWater(true);
       }
     });

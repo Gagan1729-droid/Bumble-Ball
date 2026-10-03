@@ -584,6 +584,43 @@ class SoundManager {
       click.stop(now + 0.3);
     } catch {}
   }
+
+  /**
+   * Snapping monster jaws violent tooth clamp / chomp impact sound.
+   */
+  public playChomp(): void {
+    if (this.muted) return;
+    const ctx = this.getContext();
+    if (!ctx) return;
+    try {
+      const now = ctx.currentTime;
+      // 1. Heavy bone thud impact
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(180, now);
+      osc.frequency.exponentialRampToValueAtTime(32, now + 0.16);
+      gain.gain.setValueAtTime(0.45, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.18);
+
+      // 2. Sharp ivory teeth snap click
+      const click = ctx.createOscillator();
+      const clickGain = ctx.createGain();
+      click.type = 'square';
+      click.frequency.setValueAtTime(520, now);
+      click.frequency.exponentialRampToValueAtTime(90, now + 0.05);
+      clickGain.gain.setValueAtTime(0.3, now);
+      clickGain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+      click.connect(clickGain);
+      clickGain.connect(ctx.destination);
+      click.start(now);
+      click.stop(now + 0.06);
+    } catch {}
+  }
 }
 
 export const soundManager = new SoundManager();

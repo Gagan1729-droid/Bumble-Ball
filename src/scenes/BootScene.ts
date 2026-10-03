@@ -20,6 +20,7 @@ export class BootScene extends Phaser.Scene {
     this.createUIHeartTextures();
     this.createParallaxTextures();
     this.createMechanicTextures();
+    this.createSnappingMonsterTextures();
   }
 
   public create(): void {
@@ -638,6 +639,174 @@ export class BootScene extends Phaser.Scene {
     gWind.fillRoundedRect(2, 2, 4, 10, 2);
     gWind.generateTexture('wind-particle', 8, 16);
     gWind.destroy();
+  }
+
+  /**
+   * Generates procedural monster face assets:
+   * - Upper head covering mouth to forehead with horns, brow, two menacing predator eyes, snout, and upper fangs.
+   * - Lower jaw with upward fangs, gum plate, and armored spiky chin.
+   */
+  private createSnappingMonsterTextures(): void {
+    const w = 120;
+    const hUpper = 96;
+
+    // 1. Upper Head & Face (Forehead, Horns, 2 Eyes, Snout, Upper Jaws)
+    const gUpper = this.make.graphics({ x: 0, y: 0 });
+
+    // Horns curving out and up
+    gUpper.fillStyle(0x18181b, 1);
+    // Left horn
+    gUpper.fillTriangle(24, 44, 4, 10, 38, 30);
+    gUpper.fillTriangle(4, 10, 0, 4, 12, 18);
+    // Right horn
+    gUpper.fillTriangle(96, 44, 116, 10, 82, 30);
+    gUpper.fillTriangle(116, 10, 120, 4, 108, 18);
+    // Horn highlights
+    gUpper.fillStyle(0x3f3f46, 0.8);
+    gUpper.fillRect(8, 14, 12, 4);
+    gUpper.fillRect(100, 14, 12, 4);
+
+    // Armored Monster Forehead & Skull Plate
+    gUpper.fillStyle(0x450a0a, 1);
+    gUpper.beginPath();
+    gUpper.moveTo(22, 50);
+    gUpper.lineTo(26, 26);
+    gUpper.lineTo(46, 14);
+    gUpper.lineTo(74, 14);
+    gUpper.lineTo(94, 26);
+    gUpper.lineTo(98, 50);
+    gUpper.lineTo(108, 70);
+    gUpper.lineTo(12, 70);
+    gUpper.closePath();
+    gUpper.fillPath();
+
+    // Cranial ridges / bone plates
+    gUpper.fillStyle(0x7f1d1d, 1);
+    gUpper.fillRoundedRect(32, 18, 56, 16, 4);
+    gUpper.fillStyle(0x991b1b, 0.7);
+    gUpper.fillRoundedRect(38, 22, 44, 8, 3);
+
+    // Deep Furrowed Brow Ridges (Angry V-shape glare)
+    gUpper.fillStyle(0x2a040d, 1);
+    gUpper.beginPath();
+    gUpper.moveTo(20, 40);
+    gUpper.lineTo(56, 48);
+    gUpper.lineTo(56, 52);
+    gUpper.lineTo(20, 46);
+    gUpper.closePath();
+    gUpper.fillPath();
+
+    gUpper.beginPath();
+    gUpper.moveTo(100, 40);
+    gUpper.lineTo(64, 48);
+    gUpper.lineTo(64, 52);
+    gUpper.lineTo(100, 46);
+    gUpper.closePath();
+    gUpper.fillPath();
+
+    // TWO MENACING PREDATOR EYES ON THE FOREHEAD
+    const eyeY = 48;
+    // Left Eye
+    gUpper.fillStyle(0x1a0205, 1);
+    gUpper.fillEllipse(38, eyeY, 20, 14); // Dark sunken socket
+    gUpper.fillStyle(0xf59e0b, 1);
+    gUpper.fillEllipse(38, eyeY, 15, 10); // Glowing amber sclera
+    gUpper.fillStyle(0xfef08a, 0.9);
+    gUpper.fillCircle(38, eyeY, 4); // Bright center glow
+    gUpper.fillStyle(0x09090b, 1);
+    gUpper.fillEllipse(38, eyeY, 3.5, 9); // Slit pupil
+    gUpper.fillStyle(0xffffff, 0.95);
+    gUpper.fillCircle(36, eyeY - 2, 1.8); // Specular gleam
+
+    // Right Eye
+    gUpper.fillStyle(0x1a0205, 1);
+    gUpper.fillEllipse(82, eyeY, 20, 14); // Dark sunken socket
+    gUpper.fillStyle(0xf59e0b, 1);
+    gUpper.fillEllipse(82, eyeY, 15, 10); // Glowing amber sclera
+    gUpper.fillStyle(0xfef08a, 0.9);
+    gUpper.fillCircle(82, eyeY, 4); // Bright center glow
+    gUpper.fillStyle(0x09090b, 1);
+    gUpper.fillEllipse(82, eyeY, 3.5, 9); // Slit pupil
+    gUpper.fillStyle(0xffffff, 0.95);
+    gUpper.fillCircle(80, eyeY - 2, 1.8); // Specular gleam
+
+    // Snout Bridge & Nostrils
+    gUpper.fillStyle(0x7f1d1d, 1);
+    gUpper.fillRoundedRect(48, 50, 24, 20, 4);
+    // Two flared black nostrils
+    gUpper.fillStyle(0x180507, 1);
+    gUpper.fillEllipse(54, 64, 4.5, 3.5);
+    gUpper.fillEllipse(66, 64, 4.5, 3.5);
+
+    // Upper Jaw Gum Plate
+    gUpper.fillStyle(0x991b1b, 1);
+    gUpper.fillRoundedRect(14, 68, 92, 12, 4);
+    gUpper.fillStyle(0x5b0612, 1);
+    gUpper.fillRect(16, 68, 88, 3);
+
+    // Upper Fangs (5 sharp ivory teeth pointing DOWNWARD, tips at Y = 96)
+    const upperToothPositions = [22, 38, 60, 82, 98];
+    const toothHalfW = 8;
+    upperToothPositions.forEach((tx) => {
+      // Fang shadow root
+      gUpper.fillStyle(0xb45309, 0.6);
+      gUpper.fillRect(tx - toothHalfW + 2, 74, (toothHalfW - 2) * 2, 6);
+
+      // Sharp ivory tooth body
+      gUpper.fillStyle(0xfef08a, 1);
+      gUpper.fillTriangle(tx - toothHalfW, 76, tx, 96, tx + toothHalfW, 76);
+
+      // Glistening white tip
+      gUpper.fillStyle(0xffffff, 0.95);
+      gUpper.fillTriangle(tx - 2.5, 88, tx, 96, tx + 2.5, 88);
+    });
+
+    gUpper.generateTexture('monster-head-upper', w, hUpper);
+    gUpper.destroy();
+
+    // 2. Lower Jaw & Armored Chin (Tips start at Y = 0)
+    const hLower = 56;
+    const gLower = this.make.graphics({ x: 0, y: 0 });
+
+    // Lower Fangs (4 sharp ivory teeth pointing UPWARD from Y = 20 to Y = 0)
+    const lowerToothPositions = [30, 50, 70, 90];
+    lowerToothPositions.forEach((tx) => {
+      // Fang shadow root
+      gLower.fillStyle(0xb45309, 0.6);
+      gLower.fillRect(tx - toothHalfW + 2, 14, (toothHalfW - 2) * 2, 6);
+
+      // Sharp ivory tooth body
+      gLower.fillStyle(0xfef08a, 1);
+      gLower.fillTriangle(tx - toothHalfW, 20, tx, 0, tx + toothHalfW, 20);
+
+      // Glistening white tip
+      gLower.fillStyle(0xffffff, 0.95);
+      gLower.fillTriangle(tx - 2.5, 8, tx, 0, tx + 2.5, 8);
+    });
+
+    // Lower Jaw Gum Plate
+    gLower.fillStyle(0x991b1b, 1);
+    gLower.fillRoundedRect(14, 16, 92, 12, 4);
+
+    // Heavy Armored Chin Plate
+    gLower.fillStyle(0x450a0a, 1);
+    gLower.beginPath();
+    gLower.moveTo(16, 26);
+    gLower.lineTo(26, 48);
+    gLower.lineTo(60, 56);
+    gLower.lineTo(94, 48);
+    gLower.lineTo(104, 26);
+    gLower.closePath();
+    gLower.fillPath();
+
+    // Chin bone spikes / barbels
+    gLower.fillStyle(0x18181b, 1);
+    gLower.fillTriangle(34, 46, 38, 56, 44, 46);
+    gLower.fillTriangle(56, 48, 60, 56, 64, 48);
+    gLower.fillTriangle(76, 46, 82, 56, 86, 46);
+
+    gLower.generateTexture('monster-jaw-lower', w, hLower);
+    gLower.destroy();
   }
 }
 
