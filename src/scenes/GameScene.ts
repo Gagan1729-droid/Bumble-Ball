@@ -19,6 +19,9 @@ import { Gate } from '../objects/Gate';
 import { PatrolEnemy } from '../objects/PatrolEnemy';
 import { Crusher } from '../objects/Crusher';
 import { WindZone } from '../objects/WindZone';
+import { WaterZone } from '../objects/WaterZone';
+import { MonsterMouth } from '../objects/MonsterMouth';
+import { createCurvedTerrain } from '../utils/LevelGenerator';
 import { GAME_CONFIG } from '../config/gameConstants';
 
 export interface LevelStats {
@@ -46,6 +49,9 @@ export class GameScene extends Phaser.Scene {
   private breakableBlocks!: Phaser.Physics.Arcade.StaticGroup;
   private bouncers!: Phaser.Physics.Arcade.StaticGroup;
   private mudZones: MudZone[] = [];
+  private waterZones: WaterZone[] = [];
+  private monsterMouths: MonsterMouth[] = [];
+  private curvedGraphics: Phaser.GameObjects.Graphics[] = [];
   private switches: Switch[] = [];
   private gates: Map<string, Gate> = new Map();
   private patrolEnemies: PatrolEnemy[] = [];
@@ -174,6 +180,15 @@ export class GameScene extends Phaser.Scene {
 
     this.windZones.forEach((w) => w.destroy());
     this.windZones = [];
+
+    this.waterZones.forEach((w) => w.destroy());
+    this.waterZones = [];
+
+    this.monsterMouths.forEach((m) => m.destroy());
+    this.monsterMouths = [];
+
+    this.curvedGraphics.forEach((g) => g.destroy());
+    this.curvedGraphics = [];
   }
 
   private createParallaxLayers(): void {
@@ -406,7 +421,44 @@ export class GameScene extends Phaser.Scene {
       this.windZones.push(wind);
     });
 
-    // 14. Goal Portal
+    // 14. Spawn Curved/Organic Wavy Terrains
+    config.curvedTerrains?.forEach((ct) => {
+      const res = createCurvedTerrain(
+        this,
+        this.platforms,
+        ct.startX,
+        ct.startY,
+        ct.length,
+        ct.amplitude,
+        ct.frequency,
+        ct.theme
+      );
+      this.curvedGraphics.push(res.graphics);
+    });
+
+    // 15. Spawn Water Zones (Level 7+)
+    config.waterZones?.forEach((wz) => {
+      const water = new WaterZone(this, wz.x, wz.y, wz.width, wz.height, wz.title);
+      this.waterZones.push(water);
+    });
+
+    // 16. Spawn Monster Mouths (Level 5+)
+    config.monsterMouths?.forEach((mm) => {
+      const mouth = new MonsterMouth(
+        this,
+        mm.x,
+        mm.y,
+        mm.triggerWidth || 180,
+        mm.triggerHeight || 220,
+        () => this.transitionToMonsterInterior()
+      );
+      this.monsterMouths.push(mouth);
+      // Register the two independent horizontal moving bars so player can stand on and ride them
+      this.movingPlatforms.push(mouth.leftPlatform);
+      this.movingPlatforms.push(mouth.rightPlatform);
+    });
+
+    // 17. Goal Portal
     this.portal = this.physics.add.sprite(config.portal.x, config.portal.y, 'portal');
     const portalBody = this.portal.body as Phaser.Physics.Arcade.Body;
     if (portalBody) {
@@ -508,8 +560,53 @@ export class GameScene extends Phaser.Scene {
   private setupCamera(): void {
     const cam = this.cameras.main;
     cam.setBounds(0, 0, this.currentLevel.worldWidth, this.currentLevel.worldHeight);
+    // Smooth lerp on both horizontal and vertical axes for high-speed drops & ascents
     cam.startFollow(this.player, true, 0.08, 0.08);
-    cam.setDeadzone(120, 80);
+    // Compact deadzone so camera responds promptly on vertical movement
+    cam.setDeadzone(80, 60);
+  }
+
+  private transitionToMonsterInterior(): void {
+    // Smoothly shift background parallax layers to fleshy visceral dark crimson
+    this.tweens.addCounter({
+      from: 0,
+      to: 100,
+      duration: 1200,
+      onUpdate: (tween) => {
+        const rawVal = tween ? tween.getValue() : 0;
+        const factor = typeof rawVal === 'number' ? rawVal / 100 : 0;
+        if (this.bgSky) {
+          this.bgSky.setTint(
+            Phaser.Display.Color.Interpolate.ColorWithColor(
+              Phaser.Display.Color.ValueToColor(0x38bdf8),
+              Phaser.Display.Color.ValueToColor(0x450a0a),
+              100,
+              factor * 100
+            ).color
+          );
+        }
+        if (this.bgMountains) {
+          this.bgMountains.setTint(
+            Phaser.Display.Color.Interpolate.ColorWithColor(
+              Phaser.Display.Color.ValueToColor(0x64748b),
+              Phaser.Display.Color.ValueToColor(0x881337),
+              100,
+              factor * 100
+            ).color
+          );
+        }
+        if (this.bgTrees) {
+          this.bgTrees.setTint(
+            Phaser.Display.Color.Interpolate.ColorWithColor(
+              Phaser.Display.Color.ValueToColor(0x0f766e),
+              Phaser.Display.Color.ValueToColor(0x991b1b),
+              100,
+              factor * 100
+            ).color
+          );
+        }
+      },
+    });
   }
 
   public triggerScreenShake(duration: number = 180, intensity: number = 0.014): void {
@@ -596,6 +693,39 @@ export class GameScene extends Phaser.Scene {
       }
     });
 
+    // Update Water Zones overlap check
+    this.waterZones.forEach((wz) => {
+      const wBounds = wz.getBounds();
+      if (Phaser.Geom.Intersects.RectangleToRectangle(pBounds, wBounds)) {
+        this.player.setInWater(true);
+      }
+    });
+
+    // Update Monster Mouths timing overlap check (Two moving bars + chomping jaws)
+    this.monsterMouths.forEach((mm) => {
+      const status = mm.checkPlayerTimingOverlap(pBounds);
+      if (status === 'HAZARD') {
+        this.handleHazardHit();
+      }
+    });
+
+    // Dynamic vertical and horizontal camera tracking offset based on player velocity
+    if (playerBody) {
+      const targetOffsetY = Phaser.Math.Clamp(playerBody.velocity.y * 0.22, -130, 130);
+      const targetOffsetX = Phaser.Math.Clamp(playerBody.velocity.x * 0.18, -90, 90);
+
+      this.cameras.main.followOffset.x = Phaser.Math.Linear(
+        this.cameras.main.followOffset.x,
+        targetOffsetX,
+        0.06
+      );
+      this.cameras.main.followOffset.y = Phaser.Math.Linear(
+        this.cameras.main.followOffset.y,
+        targetOffsetY,
+        0.06
+      );
+    }
+
     // Update Player logic
     this.player.update(time, delta);
 
@@ -604,7 +734,9 @@ export class GameScene extends Phaser.Scene {
     // Checkpoints update
     if (this.currentLevel.checkpoints) {
       for (const cp of this.currentLevel.checkpoints) {
-        if (this.player.x >= cp.triggerX && this.checkpoint.x < cp.spawn.x) {
+        const triggeredX = cp.triggerX !== undefined && this.player.x >= cp.triggerX && this.checkpoint.x < cp.spawn.x;
+        const triggeredY = cp.triggerY !== undefined && this.player.y <= cp.triggerY && this.checkpoint.y > cp.spawn.y;
+        if (triggeredX || triggeredY) {
           this.checkpoint = { ...cp.spawn };
         }
       }
@@ -615,11 +747,19 @@ export class GameScene extends Phaser.Scene {
       this.handleAbyssFall();
     }
 
-    // Progress bar tracking
-    const startX = this.currentLevel.spawnPoint.x;
-    const endX = this.currentLevel.portal.x;
-    const progress = (this.player.x - startX) / (endX - startX);
-    this.events.emit('updateProgress', { progress });
+    // Progress bar tracking (supports both horizontal levels and vertical shafts)
+    let progress = 0;
+    const isVertical = this.currentLevel.worldHeight > this.currentLevel.worldWidth * 1.5;
+    if (isVertical) {
+      const startY = this.currentLevel.spawnPoint.y;
+      const endY = this.currentLevel.portal.y;
+      progress = (startY - this.player.y) / (startY - endY);
+    } else {
+      const startX = this.currentLevel.spawnPoint.x;
+      const endX = this.currentLevel.portal.x;
+      progress = (this.player.x - startX) / (endX - startX);
+    }
+    this.events.emit('updateProgress', { progress: Phaser.Math.Clamp(progress, 0, 1) });
   }
 
   private handleHazardHit(hazardObj?: Phaser.Physics.Arcade.Sprite): void {

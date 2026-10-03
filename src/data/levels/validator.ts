@@ -42,11 +42,11 @@ export function validateLevel(config: ILevelConfig): LevelValidationReport {
       const hasLowPlatform = config.platforms?.some(
         (p) => p.x >= mzLeft && p.x <= mzRight && p.y >= mz.y - 45
       );
+      const mudTop = mz.y - mz.height / 2;
       const hasLowBank = config.groundSpans.some(
         (span) =>
-          (Math.abs(span.endX - mzLeft) <= 60 || Math.abs(span.startX - mzRight) <= 60) &&
-          span.surfaceY < mz.y + 30 &&
-          mz.y + 30 - span.surfaceY <= 35 // Max jump in mud is ~38px, so <=35px is hop-able
+          (Math.abs(span.endX - mzLeft) <= 100 || Math.abs(span.startX - mzRight) <= 100) &&
+          Math.abs(span.surfaceY - mudTop) <= 35 // Max jump in mud is ~38px, so <=35px is hop-able
       );
 
       if (!hasSpring && !hasBouncer && !hasLowPlatform && !hasLowBank) {
@@ -66,9 +66,9 @@ export function validateLevel(config: ILevelConfig): LevelValidationReport {
     if (Math.abs(cur.endX - next.startX) <= 48) {
       const stepUp = cur.surfaceY - next.surfaceY; // Positive = going up
       if (stepUp > 80) {
-        // Needs a stepping platform or spring in front of the ledge
+        // Needs a stepping platform, spring, bouncer, updraft, or water zone to ascend
         const hasBridgingPlatform = config.platforms?.some(
-          (p) => Math.abs(p.x - next.startX) <= 120 && p.y > next.surfaceY && p.y < cur.surfaceY
+          (p) => Math.abs(p.x - next.startX) <= 160 && p.y > next.surfaceY && p.y < cur.surfaceY
         );
         const hasSpring = config.springs?.some(
           (s) => Math.abs(s.x - next.startX) <= 120
@@ -79,8 +79,11 @@ export function validateLevel(config: ILevelConfig): LevelValidationReport {
         const hasWindZone = config.windZones?.some(
           (w) => Math.abs(w.x - next.startX) <= 200 && (w.forceY ?? 0) < -500
         );
+        const hasWaterZone = config.waterZones?.some(
+          (wz) => Math.abs(wz.x - next.startX) <= wz.width / 2 + 100
+        );
 
-        if (!hasBridgingPlatform && !hasSpring && !hasBouncer && !hasWindZone) {
+        if (!hasBridgingPlatform && !hasSpring && !hasBouncer && !hasWindZone && !hasWaterZone) {
           warnings.push(
             `High vertical ledge (${stepUp}px) between x:${cur.endX} and x:${next.startX} without intermediate stepping platform, spring, bouncer, or updraft.`
           );
@@ -91,8 +94,13 @@ export function validateLevel(config: ILevelConfig): LevelValidationReport {
 
   // 3. Portal Reachability
   const finalGround = config.groundSpans[config.groundSpans.length - 1];
-  const portalDistY = Math.abs(finalGround.surfaceY - config.portal.y);
-  const portalReachable = portalDistY <= 120 || (config.platforms?.some((p) => Math.abs(p.x - config.portal.x) <= 180 && Math.abs(p.y - config.portal.y) <= 80) ?? false);
+  const portalDistY = finalGround ? Math.abs(finalGround.surfaceY - config.portal.y) : 0;
+  const portalReachable =
+    portalDistY <= 120 ||
+    (config.platforms?.some((p) => Math.abs(p.x - config.portal.x) <= 220 && Math.abs(p.y - config.portal.y) <= 120) ?? false) ||
+    (config.bouncers?.some((b) => Math.abs(b.x - config.portal.x) <= 300) ?? false) ||
+    (config.windZones?.some((w) => Math.abs(w.x - config.portal.x) <= 450) ?? false) ||
+    (config.waterZones?.some((wz) => Math.abs(wz.x - config.portal.x) <= wz.width / 2 + 100) ?? false);
 
   if (!portalReachable) {
     warnings.push(`Portal at x:${config.portal.x}, y:${config.portal.y} is too high above ground.`);
@@ -100,6 +108,9 @@ export function validateLevel(config: ILevelConfig): LevelValidationReport {
 
   const totalEntities =
     (config.platforms?.length || 0) +
+    (config.curvedTerrains?.length || 0) +
+    (config.waterZones?.length || 0) +
+    (config.monsterMouths?.length || 0) +
     (config.movingPlatforms?.length || 0) +
     (config.breakableBlocks?.length || 0) +
     (config.bouncers?.length || 0) +

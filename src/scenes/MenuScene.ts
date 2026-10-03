@@ -7,6 +7,7 @@ import { ytPlayables } from '../utils/ytPlayables';
 export class MenuScene extends Phaser.Scene {
   private startPromptText!: Phaser.GameObjects.Text;
   private soundButtonText!: Phaser.GameObjects.Text;
+  private selectedLevel: number = 1;
 
   constructor() {
     super('MenuScene');
@@ -164,19 +165,64 @@ export class MenuScene extends Phaser.Scene {
       btnBg.strokeRoundedRect(-140, -25, 280, 50, 12);
     });
 
-    startBtn.on('pointerdown', () => this.startGame());
+    startBtn.on('pointerdown', () => this.startGame(this.selectedLevel));
+
+    // Interactive Level Selector (Levels 1 - 12)
+    const levelSelectorContainer = this.add.container(width / 2, 420);
+    const levelSelectorBg = this.add.graphics();
+    levelSelectorBg.fillStyle(0x0f172a, 0.7);
+    levelSelectorBg.fillRoundedRect(-120, -16, 240, 32, 8);
+    levelSelectorBg.lineStyle(1, 0x334155, 0.8);
+    levelSelectorBg.strokeRoundedRect(-120, -16, 240, 32, 8);
+
+    const levelText = this.add.text(0, 0, `SELECT LEVEL: ${this.selectedLevel} / 12`, {
+      fontFamily: 'system-ui, -apple-system, sans-serif',
+      fontSize: '13px',
+      fontStyle: 'bold',
+      color: '#38bdf8',
+    }).setOrigin(0.5);
+
+    const prevBtn = this.add.text(-95, 0, '◀', {
+      fontFamily: 'system-ui, -apple-system, sans-serif',
+      fontSize: '16px',
+      color: '#ffffff',
+    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+
+    const nextBtn = this.add.text(95, 0, '▶', {
+      fontFamily: 'system-ui, -apple-system, sans-serif',
+      fontSize: '16px',
+      color: '#ffffff',
+    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+
+    prevBtn.on('pointerdown', (p: Phaser.Input.Pointer) => {
+      p.event.stopPropagation();
+      this.selectedLevel = this.selectedLevel > 1 ? this.selectedLevel - 1 : 12;
+      levelText.setText(`SELECT LEVEL: ${this.selectedLevel} / 12`);
+      this.startPromptText?.setText(`PLAY LEVEL ${this.selectedLevel}`);
+      soundManager.playBounce(0.4);
+    });
+
+    nextBtn.on('pointerdown', (p: Phaser.Input.Pointer) => {
+      p.event.stopPropagation();
+      this.selectedLevel = this.selectedLevel < 12 ? this.selectedLevel + 1 : 1;
+      levelText.setText(`SELECT LEVEL: ${this.selectedLevel} / 12`);
+      this.startPromptText?.setText(`PLAY LEVEL ${this.selectedLevel}`);
+      soundManager.playBounce(0.4);
+    });
+
+    levelSelectorContainer.add([levelSelectorBg, prevBtn, nextBtn, levelText]);
 
     // Controls Info Guide
     const controlsGuide = this.add.text(
       width / 2,
-      440,
-      'Controls: [A][D] or [←][→] Roll  ·  [W] or [↑] or [Space] Jump\nMobile: On-Screen Touch Buttons',
+      475,
+      'Controls: [A][D] or [←][→] Roll  ·  [W] or [↑] or [Space] Jump / Swim\nMobile: On-Screen Touch Buttons',
       {
         fontFamily: 'system-ui, -apple-system, sans-serif',
-        fontSize: '13px',
+        fontSize: '12px',
         color: '#94a3b8',
         align: 'center',
-        lineSpacing: 5,
+        lineSpacing: 4,
       }
     ).setOrigin(0.5);
     controlsGuide.setDepth(2);
@@ -208,17 +254,17 @@ export class MenuScene extends Phaser.Scene {
     });
 
     // Global Key Listener to start with Space / Enter
-    this.input.keyboard?.on('keydown-SPACE', () => this.startGame());
-    this.input.keyboard?.on('keydown-ENTER', () => this.startGame());
-    this.input.keyboard?.on('keydown-UP', () => this.startGame());
+    this.input.keyboard?.on('keydown-SPACE', () => this.startGame(this.selectedLevel));
+    this.input.keyboard?.on('keydown-ENTER', () => this.startGame(this.selectedLevel));
+    this.input.keyboard?.on('keydown-UP', () => this.startGame(this.selectedLevel));
   }
 
-  private startGame(): void {
+  private startGame(levelNumber: number = 1): void {
     soundManager.startBgMusic();
     this.cameras.main.fade(220, 15, 23, 42);
     this.cameras.main.once('camerafadeoutcomplete', () => {
-      this.scene.start('GameScene', { levelNumber: 5 });
-      this.scene.start('UIScene', { levelNumber: 5 });
+      this.scene.start('GameScene', { levelNumber });
+      this.scene.start('UIScene', { levelNumber });
     });
   }
 }

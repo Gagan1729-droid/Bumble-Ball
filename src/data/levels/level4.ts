@@ -3,57 +3,96 @@ import { ILevelConfig } from './types';
 
 export const level4: ILevelConfig = {
   levelNumber: 4,
-  title: 'Sky High',
-  subtitle: 'Tower of Super Trampolines',
-  worldWidth: 3200,
-  worldHeight: 900,
-  spawnPoint: { x: 120, y: 780 },
-  portal: { x: 3000, y: 160 },
-  checkpoints: [{ triggerX: 1500, spawn: { x: 1540, y: 560 } }],
-  backgroundTheme: { skyTint: 0xe0e7ff, mountainTint: 0x818cf8, treesTint: 0x3730a3 },
+  title: 'The Moving Caverns',
+  subtitle: 'Elevator Shafts & Ceiling Spikes',
+  worldWidth: 3600,
+  worldHeight: 700,
+  spawnPoint: { x: 140, y: 520 },
+  portal: { x: 3450, y: 220 },
+  checkpoints: [
+    { triggerX: 1800, spawn: { x: 1840, y: 480 } },
+  ],
+  backgroundTheme: { skyTint: 0x1e1b4b, mountainTint: 0x4338ca, treesTint: 0x312e81 },
   groundSpans: [
-    { startX: 0, endX: 600, surfaceY: 828 },
-    { startX: 600, endX: 1450, surfaceY: 860 }, // Abyss with bottom spikes
-    { startX: 1450, endX: 1850, surfaceY: 620 }, // High cloud plateau checkpoint
-    { startX: 1850, endX: 2750, surfaceY: 860 },
-    { startX: 2750, endX: 3200, surfaceY: 260 }, // Stratosphere summit
+    { startX: 0, endX: 450, surfaceY: 580 },
+    { startX: 1100, endX: 1650, surfaceY: 580 },
+    { startX: 2300, endX: 2850, surfaceY: 540 },
+    { startX: 3300, endX: 3600, surfaceY: 280 },
   ],
+  // Wavy cavern floors
+  curvedTerrains: [
+    {
+      startX: 1150,
+      startY: 550,
+      length: 480,
+      amplitude: 35,
+      frequency: 0.015,
+      theme: { grassColor: 0x4338ca, dirtColor: 0x1e1b4b },
+    },
+    {
+      startX: 2350,
+      startY: 510,
+      length: 480,
+      amplitude: 30,
+      frequency: 0.015,
+      theme: { grassColor: 0x4338ca, dirtColor: 0x1e1b4b },
+    },
+  ],
+  // Vertical elevator platforms ascending into spike-topped cavern shafts
+  movingPlatforms: [
+    // Elevator 1: Ascends from y: 550 up to y: 290
+    { x: 650, y: 550, widthTiles: 2, distanceX: 0, distanceY: -260, duration: 3200 },
+    // Elevator 2: Ascends from y: 550 up to y: 280
+    { x: 1850, y: 550, widthTiles: 2, distanceX: 0, distanceY: -270, duration: 3000 },
+    // Elevator 3: Final ascent from y: 510 up to portal height y: 250
+    { x: 3050, y: 510, widthTiles: 2, distanceX: 0, distanceY: -260, duration: 2800 },
+  ],
+  // Safe side-alcove platforms where player must step off before reaching ceiling spikes
   platforms: [
-    { x: 750, y: 520, widthTiles: 2 },
-    { x: 1100, y: 360, widthTiles: 2 },
-    { x: 2000, y: 460, widthTiles: 2 },
-    { x: 2350, y: 300, widthTiles: 2 },
-    { x: 2650, y: 340, widthTiles: 2 }, // Stepping platform to stratosphere summit
+    // Alcove 1 (Side ledge at y: 400 where player ducks off elevator)
+    { x: 800, y: 410, widthTiles: 2 },
+    { x: 950, y: 410, widthTiles: 2 },
+    // Ceilings directly above Elevator 1 with spikes
+    { x: 620, y: 230, widthTiles: 3 },
+
+    // Alcove 2 (Side ledge at y: 390)
+    { x: 2000, y: 390, widthTiles: 2 },
+    { x: 2150, y: 390, widthTiles: 2 },
+    // Ceilings directly above Elevator 2 with spikes
+    { x: 1820, y: 220, widthTiles: 3 },
+
+    // Alcove 3 (Final safe transition shelf)
+    { x: 3180, y: 350, widthTiles: 2 },
+    // Ceilings directly above Elevator 3 with spikes
+    { x: 3020, y: 190, widthTiles: 3 },
   ],
-  bouncers: [
-    // 2.5x super trampoline power launches ball upwards through sky!
-    { x: 450, y: 816, powerMultiplier: 2.5 },
-    { x: 800, y: 508, powerMultiplier: 2.5 },
-    { x: 1250, y: 740, powerMultiplier: 2.6 },
-    { x: 1750, y: 608, powerMultiplier: 2.5 },
-    { x: 2150, y: 720, powerMultiplier: 2.6 },
-    { x: 2500, y: 460, powerMultiplier: 2.5 },
-  ],
+  // Ceiling Spikes mounted right above the moving elevators!
   spikes: [
-    { x: 620, y: 860, count: 23 },
-    { x: 1870, y: 860, count: 24 },
-    // Wall hazard spikes
-    { x: 1000, y: 420, count: 2 },
-    { x: 2250, y: 360, count: 2 },
+    // Ceiling spikes above Elevator 1 (under ceiling platform at y: 240)
+    { x: 630, y: 270, count: 3 },
+    // Ceiling spikes above Elevator 2
+    { x: 1830, y: 260, count: 3 },
+    // Ceiling spikes above Elevator 3
+    { x: 3030, y: 230, count: 3 },
+    // Pit spikes below elevator shafts
+    { x: 500, y: 680, count: 7 },
+    { x: 1700, y: 680, count: 7 },
+    { x: 2900, y: 680, count: 7 },
   ],
   coins: [
-    { x: 250, y: 780 },
-    { x: 450, y: 620 },
-    { x: 450, y: 480 },
-    { x: 800, y: 320 },
-    { x: 1100, y: 220 },
-    { x: 1250, y: 400 },
-    { x: 1600, y: 560 },
-    { x: 1750, y: 400 },
-    { x: 2000, y: 320 },
-    { x: 2150, y: 420 },
-    { x: 2350, y: 180 },
-    { x: 2500, y: 200 },
-    { x: 2850, y: 200 },
+    { x: 260, y: 520 },
+    { x: 650, y: 430 },
+    { x: 830, y: 360 },
+    { x: 980, y: 360 },
+    { x: 1300, y: 490 },
+    { x: 1500, y: 490 },
+    { x: 1850, y: 430 },
+    { x: 2030, y: 340 },
+    { x: 2180, y: 340 },
+    { x: 2500, y: 460 },
+    { x: 2700, y: 460 },
+    { x: 3050, y: 390 },
+    { x: 3210, y: 300 },
+    { x: 3450, y: 230 },
   ],
 };

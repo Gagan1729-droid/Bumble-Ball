@@ -97,8 +97,39 @@ export interface WindZoneConfig {
   forceY?: number;
 }
 
+export interface CurvedTerrainConfig {
+  startX: number;
+  startY: number;
+  length: number;
+  amplitude: number;
+  frequency: number;
+  theme?: {
+    grassColor?: number;
+    grassHighlight?: number;
+    dirtColor?: number;
+    innerDirtColor?: number;
+    bottomY?: number;
+  };
+}
+
+export interface WaterZoneConfig {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  title?: string;
+}
+
+export interface MonsterMouthConfig {
+  x: number;
+  y: number;
+  triggerWidth?: number;
+  triggerHeight?: number;
+}
+
 export interface CheckpointConfig {
-  triggerX: number;
+  triggerX?: number;
+  triggerY?: number;
   spawn: { x: number; y: number };
 }
 
@@ -117,6 +148,9 @@ export interface ILevelConfig {
     treesTint?: number;
   };
   groundSpans: GroundSpan[];
+  curvedTerrains?: CurvedTerrainConfig[];
+  waterZones?: WaterZoneConfig[];
+  monsterMouths?: MonsterMouthConfig[];
   platforms?: PlatformConfig[];
   spikes?: SpikeConfig[];
   coins?: CoinConfig[];

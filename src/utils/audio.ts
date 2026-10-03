@@ -486,6 +486,104 @@ class SoundManager {
       clickOsc.stop(now + 0.07);
     } catch {}
   }
+
+  /**
+   * Fluid stroke upward swim impulse sound (gentle bubbling water ripple).
+   */
+  public playSwim(): void {
+    if (this.muted) return;
+    const ctx = this.getContext();
+    if (!ctx) return;
+    try {
+      const now = ctx.currentTime;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(380, now);
+      osc.frequency.exponentialRampToValueAtTime(560, now + 0.08);
+      osc.frequency.exponentialRampToValueAtTime(320, now + 0.16);
+
+      gain.gain.setValueAtTime(0.001, now);
+      gain.gain.linearRampToValueAtTime(0.18, now + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.18);
+    } catch {}
+  }
+
+  /**
+   * Water entry/exit splash sound.
+   */
+  public playWaterSplash(): void {
+    if (this.muted) return;
+    const ctx = this.getContext();
+    if (!ctx) return;
+    try {
+      const now = ctx.currentTime;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(260, now);
+      osc.frequency.exponentialRampToValueAtTime(110, now + 0.22);
+
+      gain.gain.setValueAtTime(0.001, now);
+      gain.gain.linearRampToValueAtTime(0.24, now + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.24);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.24);
+    } catch {}
+  }
+
+  /**
+   * Visceral cartoon creature gulp / swallow sound when entering the monster mouth.
+   */
+  public playSwallow(): void {
+    if (this.muted) return;
+    const ctx = this.getContext();
+    if (!ctx) return;
+    try {
+      const now = ctx.currentTime;
+      // 1. Resonant squishy descending throat glide
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(340, now);
+      osc.frequency.exponentialRampToValueAtTime(110, now + 0.35);
+
+      gain.gain.setValueAtTime(0.001, now);
+      gain.gain.linearRampToValueAtTime(0.35, now + 0.03);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.4);
+
+      // 2. Wet throat gulp click
+      const click = ctx.createOscillator();
+      const clickGain = ctx.createGain();
+      click.type = 'sine';
+      click.frequency.setValueAtTime(180, now + 0.12);
+      click.frequency.exponentialRampToValueAtTime(80, now + 0.28);
+
+      clickGain.gain.setValueAtTime(0.001, now);
+      clickGain.gain.setValueAtTime(0.28, now + 0.13);
+      clickGain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+
+      click.connect(clickGain);
+      clickGain.connect(ctx.destination);
+      click.start(now + 0.12);
+      click.stop(now + 0.3);
+    } catch {}
+  }
 }
 
 export const soundManager = new SoundManager();

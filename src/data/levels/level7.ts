@@ -3,49 +3,72 @@ import { ILevelConfig } from './types';
 
 export const level7: ILevelConfig = {
   levelNumber: 7,
-  title: 'The Patrol',
-  subtitle: 'Mechanical Rolling Sentinels',
-  worldWidth: 3800,
-  worldHeight: 600,
-  spawnPoint: { x: 120, y: 480 },
-  portal: { x: 3650, y: 420 },
-  checkpoints: [{ triggerX: 1800, spawn: { x: 1850, y: 440 } }],
-  backgroundTheme: { skyTint: 0xf1f5f9, mountainTint: 0x64748b, treesTint: 0x334155 },
+  title: 'The Submerged Ruins',
+  subtitle: 'Buoyancy & Sunken Chambers',
+  worldWidth: 3600,
+  worldHeight: 700,
+  spawnPoint: { x: 140, y: 320 },
+  portal: { x: 3450, y: 320 },
+  checkpoints: [
+    { triggerX: 1800, spawn: { x: 1850, y: 360 } },
+  ],
+  backgroundTheme: { skyTint: 0x0284c7, mountainTint: 0x0369a1, treesTint: 0x075985 },
   groundSpans: [
-    { startX: 0, endX: 600, surfaceY: 528 },
-    { startX: 600, endX: 1200, surfaceY: 480 }, // Patrol grounds 1
-    { startX: 1200, endX: 1800, surfaceY: 440 }, // Patrol grounds 2
-    { startX: 1800, endX: 2500, surfaceY: 528 }, // Midpoint sanctuary
-    { startX: 2500, endX: 3100, surfaceY: 460 }, // High-speed sentry runway
-    { startX: 3100, endX: 3800, surfaceY: 480 }, // Final gauntlet
+    // Entry drainage chute
+    { startX: 0, endX: 400, surfaceY: 420 },
+    // Sunken lagoon seabed
+    { startX: 400, endX: 3200, surfaceY: 660 },
+    // Exit temple sanctuary
+    { startX: 3200, endX: 3600, surfaceY: 420 },
   ],
+  // Massive Submerged Lagoon WaterZone
+  waterZones: [
+    {
+      x: 1800,
+      y: 490,
+      width: 2800,
+      height: 380,
+      title: 'Sunken Lagoon',
+    },
+  ],
+  // Sunken stone ruins, pillars, and archways requiring non-linear navigation
   platforms: [
-    { x: 800, y: 360, widthTiles: 3 },
-    { x: 1400, y: 320, widthTiles: 3 },
-    { x: 2200, y: 410, widthTiles: 2 },
-    { x: 2750, y: 340, widthTiles: 3 },
-    { x: 3350, y: 360, widthTiles: 2 },
-  ],
-  patrolEnemies: [
-    { x: 650, y: 456, patrolDistance: 450, speed: 100 },
-    { x: 820, y: 336, patrolDistance: 110, speed: 80 },
-    { x: 1250, y: 416, patrolDistance: 450, speed: 110 },
-    { x: 1420, y: 296, patrolDistance: 110, speed: 90 },
-    { x: 2550, y: 436, patrolDistance: 480, speed: 130 },
-    { x: 3150, y: 456, patrolDistance: 400, speed: 120 },
+    // Sunken Gateway 1 (High barrier - must dive underneath)
+    { x: 750, y: 360, widthTiles: 3 },
+    { x: 1100, y: 520, widthTiles: 2 }, // Low stepping reef
+
+    // Sunken Gateway 2 (Low barrier - must swim up and over)
+    { x: 1450, y: 560, widthTiles: 3 },
+    { x: 1800, y: 380, widthTiles: 3 }, // Midpoint sanctuary arch
+
+    // Sunken Gateway 3 (Serpentine S-bend ruins)
+    { x: 2200, y: 360, widthTiles: 3 },
+    { x: 2550, y: 560, widthTiles: 3 },
+    { x: 2900, y: 380, widthTiles: 3 },
+    { x: 3150, y: 520, widthTiles: 2 }, // Stepping shelf onto dry exit temple
   ],
   spikes: [
-    { x: 2000, y: 528, count: 4 },
-    { x: 3000, y: 460, count: 3 },
+    // Hazards on submerged pillar edges to encourage precision swimming
+    { x: 760, y: 360, count: 2 },
+    { x: 1460, y: 560, count: 2 },
+    { x: 2210, y: 360, count: 2 },
+    { x: 2560, y: 560, count: 2 },
   ],
   coins: [
-    { x: 350, y: 480 },
-    { x: 850, y: 300 },
-    { x: 1450, y: 260 },
-    { x: 1650, y: 380 },
-    { x: 2100, y: 470 },
-    { x: 2750, y: 280 },
-    { x: 3350, y: 300 },
-    { x: 3550, y: 430 },
+    { x: 240, y: 360 },
+    { x: 550, y: 460 },
+    { x: 750, y: 580 }, // Deep dive reward
+    { x: 950, y: 560 },
+    { x: 1100, y: 460 },
+    { x: 1450, y: 410 }, // Surface swim reward
+    { x: 1800, y: 320 },
+    { x: 2000, y: 460 },
+    { x: 2200, y: 580 }, // Deep dive reward
+    { x: 2400, y: 560 },
+    { x: 2550, y: 410 }, // Surface swim reward
+    { x: 2750, y: 460 },
+    { x: 2900, y: 580 },
+    { x: 3100, y: 420 },
+    { x: 3350, y: 360 },
   ],
 };

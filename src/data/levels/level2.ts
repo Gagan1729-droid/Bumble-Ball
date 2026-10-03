@@ -3,56 +3,87 @@ import { ILevelConfig } from './types';
 
 export const level2: ILevelConfig = {
   levelNumber: 2,
-  title: 'The Moving World',
-  subtitle: 'Timing & Shifting Grounds',
-  worldWidth: 3600,
-  worldHeight: 600,
-  spawnPoint: { x: 120, y: 480 },
-  portal: { x: 3420, y: 200 },
-  checkpoints: [{ triggerX: 1600, spawn: { x: 1650, y: 460 } }],
-  backgroundTheme: { skyTint: 0xdbeafe, mountainTint: 0x93c5fd, treesTint: 0x1d4ed8 },
+  title: 'The Vertical Shaft',
+  subtitle: 'Extreme Vertical Ascent',
+  worldWidth: 960,
+  worldHeight: 2800,
+  spawnPoint: { x: 480, y: 2680 },
+  portal: { x: 480, y: 160 },
+  checkpoints: [
+    { triggerY: 1500, spawn: { x: 480, y: 1420 } },
+  ],
+  backgroundTheme: { skyTint: 0x0f172a, mountainTint: 0x334155, treesTint: 0x1e293b },
   groundSpans: [
-    { startX: 0, endX: 650, surfaceY: 528 },
-    { startX: 650, endX: 1600, surfaceY: 560 }, // Pit of spikes below moving platforms
-    { startX: 1600, endX: 2050, surfaceY: 528 }, // Midpoint island
-    { startX: 2050, endX: 2900, surfaceY: 560 }, // Second chasm with vertical elevator
-    { startX: 2900, endX: 3600, surfaceY: 528 }, // Goal plateau
-    { startX: 3250, endX: 3600, surfaceY: 260 }, // Elevated summit for portal
+    // Bottom floor launch chamber
+    { startX: 180, endX: 780, surfaceY: 2740 },
+    // Midpoint rest plateau
+    { startX: 380, endX: 580, surfaceY: 1460 },
+    // Top summit portal pedestal
+    { startX: 360, endX: 600, surfaceY: 220 },
   ],
   platforms: [
-    { x: 500, y: 430, widthTiles: 2 },
-    { x: 1520, y: 430, widthTiles: 2 },
-    { x: 2850, y: 400, widthTiles: 2 },
-    { x: 3100, y: 320, widthTiles: 2 },
+    // Left boundary containment pillars
+    { x: 140, y: 2400, widthTiles: 1 },
+    { x: 140, y: 2000, widthTiles: 1 },
+    { x: 140, y: 1600, widthTiles: 1 },
+    { x: 140, y: 1100, widthTiles: 1 },
+    { x: 140, y: 700, widthTiles: 1 },
+    // Right boundary containment pillars
+    { x: 800, y: 2400, widthTiles: 1 },
+    { x: 800, y: 2000, widthTiles: 1 },
+    { x: 800, y: 1600, widthTiles: 1 },
+    { x: 800, y: 1100, widthTiles: 1 },
+    { x: 800, y: 700, widthTiles: 1 },
+
+    // Intermediate recovery perches
+    { x: 432, y: 2160, widthTiles: 2 },
+    { x: 432, y: 1820, widthTiles: 2 },
+    { x: 432, y: 1050, widthTiles: 2 },
+    { x: 432, y: 680, widthTiles: 2 },
   ],
-  movingPlatforms: [
-    // Section 1: Horizontal ferry across spike pit
-    { x: 700, y: 430, widthTiles: 3, distanceX: 380, distanceY: 0, duration: 2600 },
-    { x: 1160, y: 380, widthTiles: 2, distanceX: 280, distanceY: 0, duration: 2200 },
-    // Section 2: Diagonal and vertical elevators to summit
-    { x: 2150, y: 440, widthTiles: 3, distanceX: 300, distanceY: -80, duration: 2400 },
-    { x: 2600, y: 480, widthTiles: 2, distanceX: 0, distanceY: -220, duration: 2500 },
+  // Trampolines (Bouncers) positioned centrally to blast upward through the shaft
+  bouncers: [
+    { x: 480, y: 2736, powerMultiplier: 2.6 }, // Tier 1 launch (climbs to ~2160)
+    { x: 480, y: 2156, powerMultiplier: 2.4 }, // Tier 2 launch (climbs to ~1820)
+    { x: 480, y: 1816, powerMultiplier: 2.5 }, // Tier 3 launch (climbs to midpoint 1460)
+    { x: 480, y: 1456, powerMultiplier: 2.6 }, // Tier 4 launch (climbs to ~1050)
+    { x: 480, y: 1046, powerMultiplier: 2.5 }, // Tier 5 launch (climbs to ~680)
+    { x: 480, y: 676, powerMultiplier: 2.7 },  // Final Tier launch to summit portal!
   ],
+  // Wall Spikes: Lined along left and right walls. Off-center bounces result in spike impacts!
   spikes: [
-    { x: 670, y: 560, count: 25 },
-    { x: 2070, y: 560, count: 22 },
+    // Lower Shaft Wall Spikes
+    { x: 180, y: 2520, count: 4 },
+    { x: 640, y: 2520, count: 4 },
+    { x: 180, y: 2280, count: 4 },
+    { x: 640, y: 2280, count: 4 },
+    { x: 180, y: 1950, count: 4 },
+    { x: 640, y: 1950, count: 4 },
+
+    // Upper Shaft Wall Spikes (Narrower corridor, higher precision)
+    { x: 220, y: 1280, count: 4 },
+    { x: 600, y: 1280, count: 4 },
+    { x: 220, y: 920, count: 4 },
+    { x: 600, y: 920, count: 4 },
+    { x: 220, y: 520, count: 4 },
+    { x: 600, y: 520, count: 4 },
   ],
   coins: [
-    { x: 300, y: 480 },
-    { x: 420, y: 450 },
-    { x: 740, y: 370 },
-    { x: 890, y: 370 },
-    { x: 1040, y: 370 },
-    { x: 1220, y: 320 },
-    { x: 1380, y: 320 },
-    { x: 1750, y: 470 },
-    { x: 1880, y: 470 },
-    { x: 2220, y: 380 },
-    { x: 2360, y: 350 },
-    { x: 2600, y: 380 },
-    { x: 2600, y: 300 },
-    { x: 2950, y: 470 },
-    { x: 3150, y: 260 },
-    { x: 3340, y: 200 },
+    // Airborne ascension collection rings
+    { x: 480, y: 2450 },
+    { x: 480, y: 2350 },
+    { x: 480, y: 2000 },
+    { x: 480, y: 1900 },
+    { x: 480, y: 1650 },
+    { x: 480, y: 1550 },
+    { x: 440, y: 1420 },
+    { x: 520, y: 1420 },
+    { x: 480, y: 1250 },
+    { x: 480, y: 1150 },
+    { x: 480, y: 880 },
+    { x: 480, y: 780 },
+    { x: 480, y: 500 },
+    { x: 480, y: 380 },
+    { x: 480, y: 180 },
   ],
 };

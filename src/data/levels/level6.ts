@@ -3,59 +3,88 @@ import { ILevelConfig } from './types';
 
 export const level6: ILevelConfig = {
   levelNumber: 6,
-  title: 'Lock & Key',
-  subtitle: 'The Gated Citadel',
-  worldWidth: 3800,
-  worldHeight: 600,
-  spawnPoint: { x: 120, y: 480 },
-  portal: { x: 3650, y: 220 },
-  checkpoints: [{ triggerX: 1800, spawn: { x: 1850, y: 440 } }],
-  backgroundTheme: { skyTint: 0xffedd5, mountainTint: 0xfb923c, treesTint: 0x9a3412 },
+  title: 'Belly of the Beast',
+  subtitle: 'Intestinal Valves & Vertical Descent',
+  worldWidth: 2000,
+  worldHeight: 2200,
+  spawnPoint: { x: 200, y: 220 },
+  portal: { x: 1750, y: 380 },
+  checkpoints: [
+    { triggerY: 1200, spawn: { x: 900, y: 1150 } },
+  ],
+  backgroundTheme: { skyTint: 0x450a0a, mountainTint: 0x881337, treesTint: 0x2a040d },
   groundSpans: [
-    { startX: 0, endX: 700, surfaceY: 528 },
-    { startX: 700, endX: 1800, surfaceY: 560 }, // Lower dungeon cavern
-    { startX: 1800, endX: 2500, surfaceY: 480 }, // Midpoint keep
-    { startX: 2500, endX: 3800, surfaceY: 528 }, // Upper fortress
-    { startX: 3300, endX: 3800, surfaceY: 280 }, // Elevated portal chamber
+    // Top entry ledge
+    { startX: 80, endX: 380, surfaceY: 280 },
+    // Chamber 1 Bottom (Acid Floor with Valve A)
+    { startX: 150, endX: 650, surfaceY: 2080 },
+    // Midpoint Intestinal Shelf
+    { startX: 750, endX: 1150, surfaceY: 1220 },
+    // Chamber 2 Bottom (Acid Floor with Valve B)
+    { startX: 1050, endX: 1550, surfaceY: 2080 },
+    // Exit Portal Sanctuary
+    { startX: 1600, endX: 1920, surfaceY: 440 },
   ],
+  // Fleshy walls and corridor shelves
   platforms: [
-    { x: 500, y: 420, widthTiles: 2 },
-    { x: 800, y: 440, widthTiles: 2 },
-    { x: 1050, y: 400, widthTiles: 2 },
-    { x: 1300, y: 460, widthTiles: 2 },
-    { x: 1550, y: 390, widthTiles: 2 },
-    { x: 2200, y: 380, widthTiles: 2 },
-    { x: 2700, y: 420, widthTiles: 2 },
-    { x: 2950, y: 360, widthTiles: 2 },
-    { x: 3200, y: 300, widthTiles: 2 },
+    // Esophagus dividing wall
+    { x: 500, y: 600, widthTiles: 1 },
+    { x: 500, y: 1000, widthTiles: 1 },
+    { x: 500, y: 1400, widthTiles: 1 },
+    { x: 500, y: 1800, widthTiles: 1 },
+
+    // Chamber 2 dividing wall
+    { x: 1350, y: 600, widthTiles: 1 },
+    { x: 1350, y: 1000, widthTiles: 1 },
+    { x: 1350, y: 1400, widthTiles: 1 },
+
+    // Stepping perches
+    { x: 260, y: 800, widthTiles: 2 },
+    { x: 380, y: 1350, widthTiles: 2 },
+    { x: 1180, y: 1550, widthTiles: 2 },
+    { x: 1480, y: 850, widthTiles: 2 },
   ],
+  // Organ Valve Gates (Fleshy sphincters opened by pressure switches)
   gates: [
-    // Gate 1: Blocks the bridge to the upper keep
-    { id: 'gate_red', x: 2450, y: 432, height: 96 },
-    // Gate 2: Blocks entrance to final portal
-    { id: 'gate_blue', x: 3320, y: 232, height: 96 },
+    // Valve Gate 1: Opens ascent path to Midpoint Shelf
+    { id: 'valve1', x: 620, y: 1220, height: 120 },
+    // Valve Gate 2: Opens ascent path to Exit Sanctuary
+    { id: 'valve2', x: 1520, y: 700, height: 140 },
   ],
   switches: [
-    // Switch 1: Hidden in the deep lower dungeon
-    { id: 'gate_red', x: 1300, y: 448 },
-    // Switch 2: High in the upper fortress rafters
-    { id: 'gate_blue', x: 2950, y: 348 },
+    // Valve Switch 1 at bottom of Chamber 1
+    { id: 'valve1', x: 320, y: 2070 },
+    // Valve Switch 2 at bottom of Chamber 2
+    { id: 'valve2', x: 1250, y: 2070 },
   ],
+  // Trampolines at the bottom to propel Bumble back up through opened valves
+  bouncers: [
+    { x: 520, y: 2076, powerMultiplier: 2.8 }, // Launches up to Midpoint Shelf at y: 1220
+    { x: 1420, y: 2076, powerMultiplier: 2.9 }, // Launches up to Exit Sanctuary at y: 440
+  ],
+  // Spikes lining throat corridor walls during vertical plunges
   spikes: [
-    { x: 740, y: 560, count: 28 },
-    { x: 2720, y: 528, count: 4 },
+    // Esophagus drop hazards
+    { x: 140, y: 750, count: 2 },
+    { x: 420, y: 1150, count: 2 },
+    { x: 160, y: 1650, count: 3 },
+    // Intestinal drop hazards
+    { x: 1060, y: 1450, count: 2 },
+    { x: 1300, y: 1750, count: 2 },
   ],
   coins: [
-    { x: 320, y: 480 },
-    { x: 500, y: 370 },
-    { x: 800, y: 390 },
-    { x: 1050, y: 350 },
-    { x: 1300, y: 400 },
-    { x: 1550, y: 330 },
-    { x: 1950, y: 420 },
-    { x: 2200, y: 330 },
-    { x: 2700, y: 360 },
-    { x: 2950, y: 290 },
-    { x: 3480, y: 220 },
+    { x: 200, y: 200 },
+    { x: 260, y: 740 },
+    { x: 380, y: 1290 },
+    { x: 320, y: 2010 },
+    { x: 520, y: 1600 },
+    { x: 520, y: 1300 },
+    { x: 900, y: 1150 },
+    { x: 1180, y: 1490 },
+    { x: 1250, y: 2010 },
+    { x: 1420, y: 1400 },
+    { x: 1420, y: 800 },
+    { x: 1480, y: 790 },
+    { x: 1750, y: 360 },
   ],
 };

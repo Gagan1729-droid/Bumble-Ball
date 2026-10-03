@@ -2,6 +2,7 @@
 
 import Phaser from 'phaser';
 import { soundManager } from '../utils/audio';
+import { getCurvedTerrainAt } from '../utils/LevelGenerator';
 import { GAME_CONFIG } from '../config/gameConstants';
 
 export interface MobileInputState {
@@ -38,6 +39,8 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
   // Environmental modifier states
   public inMud: boolean = false;
+  public inWater: boolean = false;
+  public isOnCurve: boolean = false;
   public windForceY: number = 0;
   public ridingPlatformDeltaX: number = 0;
   public ridingPlatformDeltaY: number = 0;
@@ -119,6 +122,10 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.inMud = value;
   }
 
+  public setInWater(value: boolean = true): void {
+    this.inWater = value;
+  }
+
   public applyWind(forceY: number): void {
     this.windForceY = forceY;
   }
@@ -182,7 +189,12 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       return;
     }
 
+    // 1. Organic Curved Terrain Query
+    const currentLevel = (this.scene as any).currentLevel;
+    const curve = getCurvedTerrainAt(this.x, currentLevel?.curvedTerrains);
+
     const isGrounded = body.blocked.down || body.touching.down;
+    this.isOnCurve = !!(curve && isGrounded);
 
     // Coyote time tracking
     if (isGrounded) {
@@ -192,7 +204,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
     // Squash & Stretch Juice on Ground Impact
     if (isGrounded && !this.wasGrounded) {
-      if (this.prevVelocityY > 240) {
+      if (this.prevVelocityY > 120) {
         const impactRatio = Math.min(this.prevVelocityY / 500, 1);
         soundManager.playBounce(impactRatio);
 
@@ -232,15 +244,34 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       this.ridingPlatformDeltaY = 0;
     }
 
-    // Environmental physics tuning: Mud & Wind
-    const currentAccel = this.inMud ? this.ACCELERATION * 0.5 : this.ACCELERATION;
-    const currentDrag = this.inMud ? 850 : 350;
-    const currentJumpForce = this.inMud ? Math.round(this.JUMP_FORCE * 0.6) : this.JUMP_FORCE;
+    // Environmental physics tuning: Water, Mud & Wind
+    let currentAccel = this.inMud ? this.ACCELERATION * 0.5 : this.ACCELERATION;
+    let currentDragX = this.inMud ? 850 : 350;
+    let currentDragY = 0;
+    let currentJumpForce = this.inMud ? Math.round(this.JUMP_FORCE * 0.6) : this.JUMP_FORCE;
+    let effectiveForceY = this.windForceY;
 
-    body.setDragX(currentDrag);
-    body.setAccelerationY(this.windForceY);
+    if (this.inWater) {
+      // 1. Gravity reduced by 70%: standard gravity is 1000px/s^2, counteracted by -700px/s^2 buoyant upward acceleration
+      effectiveForceY += -700;
+      // 2. Drag drastically increased in fluid
+      currentDragX = 750;
+      currentDragY = 520;
+      currentAccel = this.ACCELERATION * 0.65;
+
+      // Soft cap sinking velocity in water
+      if (body.velocity.y > 140) {
+        body.setVelocityY(140);
+      }
+    }
+
+    body.setDragX(currentDragX);
+    body.setDragY(currentDragY);
+    body.setAccelerationY(effectiveForceY);
 
     // Reset frame-based environmental flags
+    const wasInWaterThisFrame = this.inWater;
+    this.inWater = false;
     this.inMud = false;
     this.windForceY = 0;
 
@@ -277,23 +308,34 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       }
     }
 
+    // Slope physics: Downhill gravitational acceleration (F = g * sin(angle))
+    let slopeForceX = 0;
+    if (this.isOnCurve && curve) {
+      slopeForceX = Math.sin(curve.angle) * 920;
+    }
+
     // Horizontal Movement
     if (moveLeft) {
-      body.setAccelerationX(-currentAccel);
-      this.angle -= (Math.abs(body.velocity.x) * delta) / 100;
+      body.setAccelerationX(-currentAccel + slopeForceX);
+      this.angle -= (Math.abs(body.velocity.x) * delta) / 75;
     } else if (moveRight) {
-      body.setAccelerationX(currentAccel);
-      this.angle += (Math.abs(body.velocity.x) * delta) / 100;
+      body.setAccelerationX(currentAccel + slopeForceX);
+      this.angle += (Math.abs(body.velocity.x) * delta) / 75;
     } else {
-      body.setAccelerationX(0);
+      // Natural downhill roll when keys are released!
+      body.setAccelerationX(slopeForceX);
       if (Math.abs(body.velocity.x) > 5) {
-        this.angle += ((body.velocity.x > 0 ? 1 : -1) * Math.abs(body.velocity.x) * delta) / 100;
+        this.angle += ((body.velocity.x > 0 ? 1 : -1) * Math.abs(body.velocity.x) * delta) / 75;
       }
     }
 
-    // Clamp horizontal speed
-    if (Math.abs(body.velocity.x) > this.MOVE_SPEED) {
-      body.setVelocityX(Math.sign(body.velocity.x) * this.MOVE_SPEED);
+    // Dynamic downhill rolling top speed boost (allows building huge momentum down valleys!)
+    const slopeSpeedBoost = this.isOnCurve && Math.sign(body.velocity.x) === Math.sign(slopeForceX)
+      ? Math.abs(slopeForceX) * 0.16
+      : 0;
+    const maxSpeed = (wasInWaterThisFrame ? this.MOVE_SPEED * 0.75 : this.MOVE_SPEED) + slopeSpeedBoost;
+    if (Math.abs(body.velocity.x) > maxSpeed) {
+      body.setVelocityX(Math.sign(body.velocity.x) * maxSpeed);
     }
 
     // Ground rolling dust emission
@@ -301,30 +343,65 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       this.dustEmitter.emitParticleAt(this.x, this.y + 14, 1);
     }
 
-    // Jump Logic (with Coyote Time leniency)
-    const canJump = !this.isJumping && (isGrounded || (time - this.lastGroundedTime <= this.COYOTE_DURATION));
+    // Jump & Swimming Logic
+    if (wasInWaterThisFrame) {
+      // In Water: Jump button executes upward swim stroke / impulse
+      if (jumpRequested) {
+        body.setVelocityY(-190);
+        soundManager.playSwim();
 
-    if (jumpRequested && canJump) {
-      this.isJumping = true;
-      body.setVelocityY(currentJumpForce);
-      soundManager.playJump();
+        // Subtle fluid stretch
+        this.setScale(0.88, 1.16);
+        this.scene.tweens.add({
+          targets: this,
+          scaleX: 1,
+          scaleY: 1,
+          duration: 180,
+          ease: 'Quad.easeOut',
+        });
 
-      // Stretch on jump
-      this.setScale(0.82, 1.25);
-      this.scene.tweens.add({
-        targets: this,
-        scaleX: 1,
-        scaleY: 1,
-        duration: 160,
-        ease: 'Quad.easeOut',
-      });
+        if (this.dustEmitter) {
+          this.dustEmitter.emitParticleAt(this.x, this.y, 3);
+        }
 
-      if (this.dustEmitter) {
-        this.dustEmitter.emitParticleAt(this.x, this.y + 14, 3);
+        if (this.mobileControls.jump) {
+          this.mobileControls.jump = false;
+        }
       }
+    } else {
+      // Normal Grounded Jump (with Coyote Time leniency)
+      const canJump = !this.isJumping && (isGrounded || this.isOnCurve || (time - this.lastGroundedTime <= this.COYOTE_DURATION));
 
-      if (this.mobileControls.jump) {
-        this.mobileControls.jump = false;
+      if (jumpRequested && canJump) {
+        this.isJumping = true;
+        this.isOnCurve = false;
+        body.setAllowGravity(true);
+        body.setVelocityY(currentJumpForce);
+
+        // If launching off a sloped curve, add launch impulse along surface normal!
+        if (curve) {
+          body.setVelocityX(body.velocity.x + curve.normalX * 70);
+        }
+
+        soundManager.playJump();
+
+        // Stretch on jump
+        this.setScale(0.82, 1.25);
+        this.scene.tweens.add({
+          targets: this,
+          scaleX: 1,
+          scaleY: 1,
+          duration: 160,
+          ease: 'Quad.easeOut',
+        });
+
+        if (this.dustEmitter) {
+          this.dustEmitter.emitParticleAt(this.x, this.y + 14, 3);
+        }
+
+        if (this.mobileControls.jump) {
+          this.mobileControls.jump = false;
+        }
       }
     }
   }
@@ -536,6 +613,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.faceState = 'HURT';
 
     soundManager.playHurt();
+    soundManager.playBounce(0.75);
 
     const body = this.body as Phaser.Physics.Arcade.Body;
     if (body) {

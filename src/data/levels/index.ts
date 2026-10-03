@@ -14,6 +14,8 @@ import { level7 } from './level7';
 import { level8 } from './level8';
 import { level9 } from './level9';
 import { level10 } from './level10';
+import { level11 } from './level11';
+import { level12 } from './level12';
 
 export {
   level1,
@@ -26,6 +28,8 @@ export {
   level8,
   level9,
   level10,
+  level11,
+  level12,
 };
 
 export const LEVELS: ILevelConfig[] = [
@@ -39,6 +43,8 @@ export const LEVELS: ILevelConfig[] = [
   level8,
   level9,
   level10,
+  level11,
+  level12,
 ];
 
 export function getLevelConfig(levelNumber: number): ILevelConfig {

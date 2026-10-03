@@ -7,8 +7,8 @@
 export const GAME_CONFIG = {
   // Player Stats & Health
   PLAYER: {
-    MAX_HEALTH: 3,                // Maximum hearts / lives
-    INITIAL_HEALTH: 3,            // Starting health count
+    MAX_HEALTH: 100,                // Maximum hearts / lives
+    INITIAL_HEALTH: 100,            // Starting health count
     MOVE_SPEED: 240,              // Base movement velocity (px/s)
     ACCELERATION: 900,            // Horizontal roll acceleration (px/s^2)
     MAX_VELOCITY_X: 260,          // Max horizontal speed cap

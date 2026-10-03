@@ -3,73 +3,94 @@ import { ILevelConfig } from './types';
 
 export const level5: ILevelConfig = {
   levelNumber: 5,
-  title: 'The Swamp',
-  subtitle: 'Muddy Waters & Heavy Drag',
+  title: "The Beast's Maw",
+  subtitle: 'Timing the Chomping Jaws',
   worldWidth: 3600,
-  worldHeight: 600,
-  spawnPoint: { x: 120, y: 480 },
-  portal: { x: 3450, y: 410 },
-  checkpoints: [{ triggerX: 1700, spawn: { x: 1750, y: 440 } }],
+  worldHeight: 650,
+  spawnPoint: { x: 120, y: 460 },
+  portal: { x: 3450, y: 440 },
+  checkpoints: [
+    { triggerX: 1650, spawn: { x: 1720, y: 420 } },
+  ],
   backgroundTheme: { skyTint: 0xdcfce7, mountainTint: 0x4ade80, treesTint: 0x166534 },
   groundSpans: [
-    { startX: 0, endX: 520, surfaceY: 528 },
-    { startX: 520, endX: 980, surfaceY: 550 }, // Mud basin 1 (22px bank)
-    { startX: 980, endX: 1280, surfaceY: 528 }, // Dry island 1
-    { startX: 1280, endX: 1700, surfaceY: 550 }, // Mud basin 2 (22px bank)
-    { startX: 1700, endX: 2020, surfaceY: 480 }, // Midpoint sanctuary
-    { startX: 2020, endX: 2060, surfaceY: 526 }, // Mossy stone step down (24px drop to mud)
-    { startX: 2060, endX: 2600, surfaceY: 550 }, // Deep mud bog 3
-    { startX: 2600, endX: 2950, surfaceY: 528 }, // Dry island 2
-    { startX: 2950, endX: 3300, surfaceY: 550 }, // Mud basin 4 (22px bank)
-    { startX: 3300, endX: 3600, surfaceY: 480 }, // Goal island
+    // Outside meadow approach
+    { startX: 0, endX: 450, surfaceY: 500 },
+    // Approach cliff leading right to the Left Moving Bar
+    { startX: 1100, endX: 1400, surfaceY: 440 },
+    // Stomach chamber ground starting right by the Right Moving Bar
+    { startX: 1700, endX: 2050, surfaceY: 480 },
+    { startX: 2050, endX: 2550, surfaceY: 540 }, // Gastric acid bed 1
+    { startX: 2550, endX: 2900, surfaceY: 520 },
+    { startX: 2900, endX: 3350, surfaceY: 540 }, // Gastric acid bed 2
+    { startX: 3350, endX: 3600, surfaceY: 500 },
   ],
+  // Wavy meadow rolling hills outside, followed by bumpy fleshy gullet terrain inside
+  curvedTerrains: [
+    // Exterior approach roller hills
+    {
+      startX: 400,
+      startY: 480,
+      length: 700,
+      amplitude: 45,
+      frequency: 0.012,
+      theme: { grassColor: 0x16a34a, dirtColor: 0x78350f },
+    },
+    // Bumpy interior stomach lining (fleshy red / maroon tissue)
+    {
+      startX: 2000,
+      startY: 510,
+      length: 600,
+      amplitude: 35,
+      frequency: 0.016,
+      theme: { grassColor: 0x991b1b, dirtColor: 0x450a0a, innerDirtColor: 0x2a040d },
+    },
+    {
+      startX: 2850,
+      startY: 510,
+      length: 550,
+      amplitude: 30,
+      frequency: 0.016,
+      theme: { grassColor: 0x991b1b, dirtColor: 0x450a0a, innerDirtColor: 0x2a040d },
+    },
+  ],
+  // Monster Maw Encounter with two independent horizontal moving bars (left at 1445, right at 1655)
+  monsterMouths: [
+    { x: 1550, y: 390, triggerWidth: 180, triggerHeight: 220 },
+  ],
+  // NO bouncers / jumpers to help - pure player timing & skill!
+  bouncers: [],
+  // Gastric Acid Pools (Mud Zones) inside the beast
   mudZones: [
-    { x: 750, y: 520, width: 460, height: 60 },
-    { x: 1490, y: 520, width: 420, height: 60 },
-    { x: 2330, y: 520, width: 540, height: 60 },
-    { x: 3125, y: 520, width: 350, height: 60 },
+    { x: 1850, y: 535, width: 340, height: 50 },
+    { x: 2700, y: 535, width: 320, height: 50 },
+    { x: 3100, y: 535, width: 280, height: 50 },
   ],
+  // Fleshy platforms floating above the gastric acid pools
   platforms: [
-    // Section 1: The Classic Precise Leap across Mud Basin 1 (Single challenging suspended bar)
-    { x: 700, y: 440, widthTiles: 2 },
-
-    // Section 2: Escalating challenge across Mud Basin 2 (Two-bar rhythm jump)
-    { x: 1420, y: 440, widthTiles: 2 },
-    { x: 1580, y: 420, widthTiles: 2 },
-
-    // Section 3: Deep Mud Bog 3 (Static perch + Moving ferry + Single-tile precision perch)
-    { x: 2180, y: 440, widthTiles: 2 },
-    { x: 2510, y: 440, widthTiles: 1 }, // 1-tile precision landing
-
-    // Section 4: Climax Gauntlet across Mud Basin 4 (2-tile bar into 1-tile perch into Goal Island)
-    { x: 3080, y: 440, widthTiles: 2 },
-    { x: 3220, y: 430, widthTiles: 1 },
+    { x: 1900, y: 420, widthTiles: 2 },
+    { x: 2300, y: 430, widthTiles: 2 },
+    { x: 2700, y: 410, widthTiles: 2 },
+    { x: 3150, y: 430, widthTiles: 2 },
   ],
-  movingPlatforms: [
-    // Section 3: Oscillating ferry over the deep mud bog
-    { x: 2320, y: 420, widthTiles: 2, distanceX: 90, distanceY: 0, duration: 2000 },
-  ],
-  // No artificial springs in the swamp: Falling in mud is a real hazard.
-  // The player must trudge back through the thick mud to the natural dry bank and re-attempt the jump!
-  springs: [],
   spikes: [
-    { x: 1100, y: 528, count: 3 },
-    { x: 2750, y: 510, count: 3 },
+    // Stomach acid spikes in the deep flesh troughs
+    { x: 2150, y: 546, count: 4 },
+    { x: 2950, y: 546, count: 4 },
   ],
   coins: [
-    { x: 280, y: 480 },
-    { x: 700, y: 380 },
-    { x: 980, y: 460 },
-    { x: 1130, y: 440 },
-    { x: 1420, y: 380 },
-    { x: 1580, y: 360 },
-    { x: 1850, y: 420 },
-    { x: 2180, y: 380 },
-    { x: 2360, y: 360 },
-    { x: 2510, y: 380 },
-    { x: 2700, y: 440 },
-    { x: 3080, y: 380 },
-    { x: 3220, y: 370 },
-    { x: 3450, y: 440 },
+    { x: 250, y: 470 },
+    { x: 550, y: 430 },
+    { x: 750, y: 410 },
+    { x: 1050, y: 440 },
+    { x: 1445, y: 340 }, // Above left moving platform
+    { x: 1550, y: 390 }, // Directly in between monster jaws
+    { x: 1655, y: 340 }, // Above right moving platform
+    { x: 1900, y: 360 },
+    { x: 2300, y: 370 },
+    { x: 2500, y: 460 },
+    { x: 2700, y: 350 },
+    { x: 3150, y: 370 },
+    { x: 3450, y: 390 },
   ],
 };

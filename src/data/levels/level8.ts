@@ -3,52 +3,90 @@ import { ILevelConfig } from './types';
 
 export const level8: ILevelConfig = {
   levelNumber: 8,
-  title: 'The Crushers',
-  subtitle: 'Rhythm of the Iron Pistons',
-  worldWidth: 3800,
-  worldHeight: 600,
-  spawnPoint: { x: 120, y: 480 },
-  portal: { x: 3650, y: 420 },
-  checkpoints: [{ triggerX: 1800, spawn: { x: 1850, y: 460 } }],
-  backgroundTheme: { skyTint: 0xfef2f2, mountainTint: 0xef4444, treesTint: 0x991b1b },
+  title: 'Deep Water Precision',
+  subtitle: 'Abyssal Mazes & Spike Corridors',
+  worldWidth: 3600,
+  worldHeight: 750,
+  spawnPoint: { x: 140, y: 380 },
+  portal: { x: 3450, y: 380 },
+  checkpoints: [
+    { triggerX: 1800, spawn: { x: 1850, y: 380 } },
+  ],
+  backgroundTheme: { skyTint: 0x082f49, mountainTint: 0x075985, treesTint: 0x0c4a6e },
   groundSpans: [
-    { startX: 0, endX: 700, surfaceY: 528 },
-    { startX: 700, endX: 1800, surfaceY: 528 }, // Crusher Corridor 1
-    { startX: 1800, endX: 2400, surfaceY: 528 }, // Midpoint sanctuary
-    { startX: 2400, endX: 3800, surfaceY: 528 }, // Crusher Corridor 2
+    // Launch platform
+    { startX: 0, endX: 350, surfaceY: 460 },
+    // Deep underwater seabed floor
+    { startX: 350, endX: 3250, surfaceY: 720 },
+    // Destination temple
+    { startX: 3250, endX: 3600, surfaceY: 460 },
   ],
-  crushers: [
-    // Corridor 1: Sequential staggered crushers
-    { x: 850, y: 260, dropDistance: 220, upWait: 1800, dropDuration: 200, downWait: 900, riseDuration: 1200 },
-    { x: 1100, y: 260, dropDistance: 220, upWait: 2200, dropDuration: 200, downWait: 900, riseDuration: 1200 },
-    { x: 1350, y: 260, dropDistance: 220, upWait: 1600, dropDuration: 200, downWait: 900, riseDuration: 1200 },
-    { x: 1600, y: 260, dropDistance: 220, upWait: 2400, dropDuration: 200, downWait: 900, riseDuration: 1200 },
-    // Corridor 2: Tighter high-speed pistons
-    { x: 2550, y: 260, dropDistance: 220, upWait: 1500, dropDuration: 180, downWait: 800, riseDuration: 1000 },
-    { x: 2800, y: 260, dropDistance: 220, upWait: 2000, dropDuration: 180, downWait: 800, riseDuration: 1000 },
-    { x: 3050, y: 260, dropDistance: 220, upWait: 1700, dropDuration: 180, downWait: 800, riseDuration: 1000 },
-    { x: 3300, y: 260, dropDistance: 220, upWait: 2200, dropDuration: 180, downWait: 800, riseDuration: 1000 },
+  // Abyssal deep water zone filling the labyrinth
+  waterZones: [
+    {
+      x: 1800,
+      y: 450,
+      width: 2900,
+      height: 580,
+      title: 'Abyssal Trench',
+    },
   ],
+  // Tight underwater maze walls forcing 90-degree S-turn navigation
   platforms: [
-    { x: 975, y: 410, widthTiles: 1 },
-    { x: 1225, y: 410, widthTiles: 1 },
-    { x: 1475, y: 410, widthTiles: 1 },
-    { x: 2675, y: 410, widthTiles: 1 },
-    { x: 2925, y: 410, widthTiles: 1 },
-    { x: 3175, y: 410, widthTiles: 1 },
+    // Trench Barrier 1 (Upper hanging stalactite)
+    { x: 650, y: 320, widthTiles: 2 },
+    { x: 650, y: 220, widthTiles: 2 },
+    // Trench Barrier 1 (Lower rising stalagmite)
+    { x: 950, y: 580, widthTiles: 2 },
+    { x: 950, y: 480, widthTiles: 2 },
+
+    // Trench Barrier 2 (Tight zigzag channel)
+    { x: 1300, y: 300, widthTiles: 2 },
+    { x: 1550, y: 560, widthTiles: 2 },
+    // Midpoint rest shelf
+    { x: 1850, y: 440, widthTiles: 2 },
+
+    // Trench Barrier 3 (Choke point gauntlet)
+    { x: 2150, y: 280, widthTiles: 2 },
+    { x: 2450, y: 600, widthTiles: 2 },
+    { x: 2750, y: 320, widthTiles: 2 },
+    { x: 3000, y: 580, widthTiles: 2 },
+    { x: 3200, y: 580, widthTiles: 2 }, // Stepping shelf onto dry destination temple
+  ],
+  // Dense spike clusters lining the 90-degree corners and channels
+  spikes: [
+    // Spike clusters around Barrier 1
+    { x: 660, y: 350, count: 2 }, // Tip of stalactite
+    { x: 960, y: 480, count: 2 }, // Tip of stalagmite
+    { x: 800, y: 720, count: 4 }, // Sea floor trap
+
+    // Spike clusters around Barrier 2
+    { x: 1310, y: 330, count: 2 },
+    { x: 1560, y: 560, count: 2 },
+    { x: 1400, y: 720, count: 4 },
+
+    // Needle-thread spike gauntlet (Tier 3)
+    { x: 2160, y: 310, count: 2 },
+    { x: 2460, y: 600, count: 2 },
+    { x: 2760, y: 350, count: 2 },
+    { x: 3010, y: 580, count: 2 },
+    { x: 2600, y: 720, count: 6 },
   ],
   coins: [
-    { x: 350, y: 480 },
-    { x: 850, y: 480 },
-    { x: 975, y: 360 },
-    { x: 1100, y: 480 },
-    { x: 1225, y: 360 },
-    { x: 1350, y: 480 },
-    { x: 1950, y: 480 },
-    { x: 2550, y: 480 },
-    { x: 2675, y: 360 },
-    { x: 2800, y: 480 },
-    { x: 3050, y: 480 },
-    { x: 3480, y: 480 },
+    { x: 220, y: 400 },
+    { x: 650, y: 480 }, // Dive route
+    { x: 800, y: 420 },
+    { x: 950, y: 360 }, // Upward swim route
+    { x: 1150, y: 420 },
+    { x: 1300, y: 520 },
+    { x: 1550, y: 380 },
+    { x: 1850, y: 380 },
+    { x: 2150, y: 460 },
+    { x: 2300, y: 420 },
+    { x: 2450, y: 380 },
+    { x: 2750, y: 500 },
+    { x: 3000, y: 380 },
+    { x: 3200, y: 420 },
+    { x: 3450, y: 400 },
   ],
 };
