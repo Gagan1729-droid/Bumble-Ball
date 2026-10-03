@@ -1,7 +1,7 @@
 // src/scenes/BootScene.ts
 
 import Phaser from 'phaser';
-import { ytPlayables } from '../utils/ytPlayables';
+import { PlatformManager } from '../platform/PlatformManager';
 
 export class BootScene extends Phaser.Scene {
   constructor() {
@@ -9,6 +9,14 @@ export class BootScene extends Phaser.Scene {
   }
 
   public preload(): void {
+    const platform = PlatformManager.getInstance();
+
+    // Hook into Phaser's internal asset loader progress event to sync with the platform loader
+    this.load.on('progress', (value: number) => {
+      const percentage = Math.floor(value * 100);
+      platform.setLoadingProgress(percentage);
+    });
+
     // Generate all game placeholder assets programmatically via Phaser.GameObjects.Graphics
     this.createPlayerTexture();
     this.createTerrainTextures();
@@ -21,13 +29,23 @@ export class BootScene extends Phaser.Scene {
     this.createParallaxTextures();
     this.createMechanicTextures();
     this.createSnappingMonsterTextures();
+
+    platform.setLoadingProgress(100);
   }
 
   public create(): void {
-    ytPlayables.firstFrameReady();
     this.dismissLoadingOverlay();
-    // Transition smoothly to the main menu screen
-    this.scene.start('MenuScene');
+
+    // Multi-Platform Lifecycle: Transition to MenuScene only after platform gives ready signal
+    PlatformManager.getInstance()
+      .startGame()
+      .then(() => {
+        this.scene.start('MenuScene');
+      })
+      .catch((error: any) => {
+        console.warn('Platform.startGame error, launching MenuScene fallback:', error);
+        this.scene.start('MenuScene');
+      });
   }
 
   private dismissLoadingOverlay(): void {

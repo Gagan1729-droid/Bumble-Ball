@@ -5,9 +5,10 @@ import { BootScene } from './scenes/BootScene';
 import { MenuScene } from './scenes/MenuScene';
 import { GameScene } from './scenes/GameScene';
 import { UIScene } from './scenes/UIScene';
+import { PlatformManager } from './platform/PlatformManager';
 
 /**
- * Phaser Game Configuration for Bounce Tales Web.
+ * Phaser Game Configuration for Bumble Ball (Bounce Tales Web).
  * Configured with responsive scaling, WebGL with Canvas fallback,
  * and tuned Arcade Physics with debug set to false.
  */
@@ -33,7 +34,7 @@ export const gameConfig: Phaser.Types.Core.GameConfig = {
     default: 'arcade',
     arcade: {
       gravity: { x: 0, y: 950 },
-      debug: false, // Arcade Physics debug mode set to false as required
+      debug: false,
     },
   },
   scene: [BootScene, MenuScene, GameScene, UIScene],
@@ -43,5 +44,19 @@ export const gameConfig: Phaser.Types.Core.GameConfig = {
   },
 };
 
-// Initialize the Phaser Game instance
-export const game = new Phaser.Game(gameConfig);
+export let game: Phaser.Game | null = null;
+
+/**
+ * Multi-Platform Initialization Sequence:
+ * Initializes the active platform (Facebook Instant Games, YouTube Playables, or Local)
+ * and only launches Phaser once initialization resolves.
+ */
+PlatformManager.getInstance()
+  .initialize()
+  .then(() => {
+    game = new Phaser.Game(gameConfig);
+  })
+  .catch((err) => {
+    console.error('Platform initialization failed, falling back to game launch:', err);
+    game = new Phaser.Game(gameConfig);
+  });
