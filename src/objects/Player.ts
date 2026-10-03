@@ -192,7 +192,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
     // Squash & Stretch Juice on Ground Impact
     if (isGrounded && !this.wasGrounded) {
-      if (this.prevVelocityY > 120) {
+      if (this.prevVelocityY > 240) {
         const impactRatio = Math.min(this.prevVelocityY / 500, 1);
         soundManager.playBounce(impactRatio);
 
@@ -536,7 +536,6 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.faceState = 'HURT';
 
     soundManager.playHurt();
-    soundManager.playBounce(0.75);
 
     const body = this.body as Phaser.Physics.Arcade.Body;
     if (body) {

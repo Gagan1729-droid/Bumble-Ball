@@ -371,7 +371,6 @@ export class UIScene extends Phaser.Scene {
    */
   public startLevel(levelNumber: number): void {
     this.currentLevelNumber = levelNumber;
-    soundManager.playJump();
     soundManager.startBgMusic();
     this.closeModals();
 

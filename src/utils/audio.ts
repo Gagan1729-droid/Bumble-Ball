@@ -440,23 +440,50 @@ class SoundManager {
     } catch {}
   }
 
-  public playCrusherSlam(): void {
-    if (this.muted) return;
+  /**
+   * Heavy mechanical stone/iron crusher impact thud.
+   * Uses low-frequency sine sub-bass and filtered dampening instead of a harsh sawtooth buzz,
+   * with spatial distance volume attenuation.
+   */
+  public playCrusherSlam(volumeScale: number = 1.0): void {
+    if (this.muted || volumeScale <= 0.02) return;
     const ctx = this.getContext();
     if (!ctx) return;
     try {
       const now = ctx.currentTime;
+      const vol = Math.min(Math.max(volumeScale, 0), 1) * 0.35;
+
+      // 1. Deep sub-bass impact thump (sine drop 85Hz -> 25Hz)
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
-      osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(90, now);
-      osc.frequency.exponentialRampToValueAtTime(30, now + 0.25);
-      gain.gain.setValueAtTime(0.4, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(85, now);
+      osc.frequency.exponentialRampToValueAtTime(25, now + 0.18);
+
+      gain.gain.setValueAtTime(0.001, now);
+      gain.gain.linearRampToValueAtTime(vol, now + 0.008);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+
       osc.connect(gain);
       gain.connect(ctx.destination);
       osc.start(now);
-      osc.stop(now + 0.3);
+      osc.stop(now + 0.22);
+
+      // 2. Heavy mechanical stone/iron clamp tap (filtered click, not a buzz)
+      const clickOsc = ctx.createOscillator();
+      const clickGain = ctx.createGain();
+      clickOsc.type = 'triangle';
+      clickOsc.frequency.setValueAtTime(140, now);
+      clickOsc.frequency.exponentialRampToValueAtTime(45, now + 0.06);
+
+      clickGain.gain.setValueAtTime(0.001, now);
+      clickGain.gain.linearRampToValueAtTime(vol * 0.6, now + 0.004);
+      clickGain.gain.exponentialRampToValueAtTime(0.001, now + 0.07);
+
+      clickOsc.connect(clickGain);
+      clickGain.connect(ctx.destination);
+      clickOsc.start(now);
+      clickOsc.stop(now + 0.07);
     } catch {}
   }
 }

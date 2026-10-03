@@ -71,7 +71,22 @@ export class Crusher extends Phaser.Physics.Arcade.Sprite {
           },
           onComplete: () => {
             if (!this.active) return;
-            soundManager.playCrusherSlam();
+
+            // Spatial audio check: only play impact sound if player is within audible distance
+            const gameScene = this.scene as Phaser.Scene & { player?: Phaser.Physics.Arcade.Sprite };
+            if (gameScene.player && gameScene.player.active) {
+              const dist = Phaser.Math.Distance.Between(this.x, this.y, gameScene.player.x, gameScene.player.y);
+              const maxAudibleDist = 520;
+              if (dist < maxAudibleDist) {
+                const volRatio = Math.max(0, 1 - dist / maxAudibleDist);
+                soundManager.playCrusherSlam(volRatio);
+
+                // Subtle screen tremor if player is right next to the falling iron crusher
+                if (dist < 260) {
+                  this.scene.cameras.main.shake(100, 0.003 * volRatio);
+                }
+              }
+            }
 
             // Dust burst on impact
             if (this.scene.textures.exists('dust')) {

@@ -13,19 +13,20 @@ export const level5: ILevelConfig = {
   backgroundTheme: { skyTint: 0xdcfce7, mountainTint: 0x4ade80, treesTint: 0x166534 },
   groundSpans: [
     { startX: 0, endX: 520, surfaceY: 528 },
-    { startX: 520, endX: 980, surfaceY: 550 }, // Mud basin 1
+    { startX: 520, endX: 980, surfaceY: 550 }, // Mud basin 1 (22px bank)
     { startX: 980, endX: 1280, surfaceY: 528 }, // Dry island 1
-    { startX: 1280, endX: 1700, surfaceY: 550 }, // Mud basin 2
-    { startX: 1700, endX: 2050, surfaceY: 480 }, // Midpoint sanctuary
-    { startX: 2050, endX: 2600, surfaceY: 550 }, // Deep mud bog 3
-    { startX: 2600, endX: 2950, surfaceY: 510 }, // Dry island 2
-    { startX: 2950, endX: 3300, surfaceY: 550 }, // Mud basin 4
+    { startX: 1280, endX: 1700, surfaceY: 550 }, // Mud basin 2 (22px bank)
+    { startX: 1700, endX: 2020, surfaceY: 480 }, // Midpoint sanctuary
+    { startX: 2020, endX: 2060, surfaceY: 526 }, // Mossy stone step down (24px drop to mud)
+    { startX: 2060, endX: 2600, surfaceY: 550 }, // Deep mud bog 3
+    { startX: 2600, endX: 2950, surfaceY: 528 }, // Dry island 2
+    { startX: 2950, endX: 3300, surfaceY: 550 }, // Mud basin 4 (22px bank)
     { startX: 3300, endX: 3600, surfaceY: 480 }, // Goal island
   ],
   mudZones: [
     { x: 750, y: 520, width: 460, height: 60 },
     { x: 1490, y: 520, width: 420, height: 60 },
-    { x: 2325, y: 520, width: 550, height: 60 },
+    { x: 2330, y: 520, width: 540, height: 60 },
     { x: 3125, y: 520, width: 350, height: 60 },
   ],
   platforms: [
@@ -48,14 +49,9 @@ export const level5: ILevelConfig = {
     // Section 3: Oscillating ferry over the deep mud bog
     { x: 2320, y: 420, widthTiles: 2, distanceX: 90, distanceY: 0, duration: 2000 },
   ],
-  springs: [
-    // Mud pit return springs: placed near the START of each mud pit.
-    // If player falls into mud, they must slog back to the start and retry the jump!
-    { x: 560, y: 538 },
-    { x: 1330, y: 538 },
-    { x: 2100, y: 538 },
-    { x: 2990, y: 538 },
-  ],
+  // No artificial springs in the swamp: Falling in mud is a real hazard.
+  // The player must trudge back through the thick mud to the natural dry bank and re-attempt the jump!
+  springs: [],
   spikes: [
     { x: 1100, y: 528, count: 3 },
     { x: 2750, y: 510, count: 3 },

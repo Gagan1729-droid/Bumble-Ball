@@ -214,12 +214,11 @@ export class MenuScene extends Phaser.Scene {
   }
 
   private startGame(): void {
-    soundManager.playJump();
     soundManager.startBgMusic();
     this.cameras.main.fade(220, 15, 23, 42);
     this.cameras.main.once('camerafadeoutcomplete', () => {
-      this.scene.start('GameScene', { levelNumber: 1 });
-      this.scene.start('UIScene', { levelNumber: 1 });
+      this.scene.start('GameScene', { levelNumber: 5 });
+      this.scene.start('UIScene', { levelNumber: 5 });
     });
   }
 }

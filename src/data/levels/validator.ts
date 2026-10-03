@@ -32,7 +32,7 @@ export function validateLevel(config: ILevelConfig): LevelValidationReport {
       const mzLeft = mz.x - mz.width / 2;
       const mzRight = mz.x + mz.width / 2;
 
-      // Check if there is an escape spring or low stepping stone in this mud zone
+      // Check if there is an escape spring, low stepping stone, or natural low bank to hop out
       const hasSpring = config.springs?.some(
         (sp) => sp.x >= mzLeft - 30 && sp.x <= mzRight + 30
       );
@@ -42,10 +42,16 @@ export function validateLevel(config: ILevelConfig): LevelValidationReport {
       const hasLowPlatform = config.platforms?.some(
         (p) => p.x >= mzLeft && p.x <= mzRight && p.y >= mz.y - 45
       );
+      const hasLowBank = config.groundSpans.some(
+        (span) =>
+          (Math.abs(span.endX - mzLeft) <= 60 || Math.abs(span.startX - mzRight) <= 60) &&
+          span.surfaceY < mz.y + 30 &&
+          mz.y + 30 - span.surfaceY <= 35 // Max jump in mud is ~38px, so <=35px is hop-able
+      );
 
-      if (!hasSpring && !hasBouncer && !hasLowPlatform) {
+      if (!hasSpring && !hasBouncer && !hasLowPlatform && !hasLowBank) {
         warnings.push(
-          `Mud zone ${idx + 1} at x:${mz.x} lacks an emergency escape spring or low stepping stone.`
+          `Mud zone ${idx + 1} at x:${mz.x} lacks an escape spring, low stepping stone, or low bank.`
         );
         mudPitsEscapable = false;
       }
