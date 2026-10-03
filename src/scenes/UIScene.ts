@@ -3,6 +3,7 @@
 import Phaser from 'phaser';
 import { soundManager } from '../utils/audio';
 import { ytPlayables } from '../utils/ytPlayables';
+import { PlatformManager } from '../platform/PlatformManager';
 
 export interface ScoreUpdatePayload {
   score: number;
@@ -461,6 +462,14 @@ export class UIScene extends Phaser.Scene {
       this.restartGameplay();
     });
 
+    // Cloud Save State on Game Over: current score and update highest score
+    const platform = PlatformManager.getInstance();
+    platform.saveData('currentScore', finalScore);
+    platform.loadData('highestScore').then((savedBest) => {
+      const best = Math.max(Number(savedBest) || 0, finalScore);
+      platform.saveData('highestScore', best);
+    });
+
     this.gameOverContainer.add([backdrop, modal, title, subtitle, score, restartBtn]);
     this.gameOverContainer.setAlpha(0);
     this.tweens.add({ targets: this.gameOverContainer, alpha: 1, duration: 250 });
@@ -472,9 +481,24 @@ export class UIScene extends Phaser.Scene {
     soundManager.stopBgMusic();
     soundManager.playVictory();
 
-    // YouTube Playables & local fallback score persistence
-    ytPlayables.sendScore(data.score);
-    ytPlayables.saveData(`level_${data.levelNumber}_complete`, {
+    // Multi-Platform Cloud Save: Save highest unlocked level and current score
+    const platform = PlatformManager.getInstance();
+    const nextLevel = data.hasNextLevel ? data.levelNumber + 1 : data.levelNumber;
+
+    platform.loadData('highestUnlockedLevel').then((savedHighest) => {
+      const currentHighest = Number(savedHighest) || 1;
+      const newHighest = Math.max(currentHighest, nextLevel);
+      platform.saveData('highestUnlockedLevel', newHighest);
+    });
+
+    platform.saveData('currentScore', data.score);
+    platform.loadData('highestScore').then((savedBest) => {
+      const best = Math.max(Number(savedBest) || 0, data.score);
+      platform.saveData('highestScore', best);
+    });
+
+    // Save level-specific telemetry and completion payload
+    platform.saveData(`level_${data.levelNumber}_complete`, {
       level: data.levelNumber,
       score: data.score,
       coins: data.coins,
@@ -482,6 +506,8 @@ export class UIScene extends Phaser.Scene {
       timeSec: data.timeSec,
       date: Date.now(),
     });
+
+    ytPlayables.sendScore(data.score);
 
     this.victoryContainer = this.add.container(width / 2, height / 2);
 

@@ -2,19 +2,24 @@
 
 import Phaser from 'phaser';
 import { soundManager } from '../utils/audio';
-import { ytPlayables } from '../utils/ytPlayables';
+import { PlatformManager } from '../platform/PlatformManager';
 
 export class MenuScene extends Phaser.Scene {
   private startPromptText!: Phaser.GameObjects.Text;
   private soundButtonText!: Phaser.GameObjects.Text;
+  private levelText!: Phaser.GameObjects.Text;
+  private scoreBadgeText!: Phaser.GameObjects.Text;
+
   private selectedLevel: number = 1;
+  private highestUnlockedLevel: number = 1;
+  private currentScore: number = 0;
+  private highestScore: number = 0;
 
   constructor() {
     super('MenuScene');
   }
 
   public create(): void {
-    ytPlayables.gameReady();
     soundManager.stopBgMusic();
     const { width, height } = this.scale;
 
@@ -65,12 +70,24 @@ export class MenuScene extends Phaser.Scene {
       shadow: { offsetX: 0, offsetY: 4, color: 'rgba(0,0,0,0.5)', blur: 6, fill: true },
     }).setOrigin(0.5);
 
-    const subTitleText = this.add.text(width / 2, 150, 'A RED BALL PLATFORMER ODYSSEY', {
+    const subTitleText = this.add.text(width / 2, 145, 'A RED BALL PLATFORMER ODYSSEY', {
       fontFamily: 'system-ui, -apple-system, sans-serif',
       fontSize: '13px',
       letterSpacing: 3,
       color: '#38bdf8',
     }).setOrigin(0.5);
+
+    // Cloud Save Stats Badge (Highest unlocked level & High score)
+    this.scoreBadgeText = this.add.text(
+      width / 2,
+      172,
+      '☁ Cloud Save: Loading progress...',
+      {
+        fontFamily: 'system-ui, -apple-system, sans-serif',
+        fontSize: '12px',
+        color: '#94a3b8',
+      }
+    ).setOrigin(0.5);
 
     // Subtle gentle title float tween
     this.tweens.add({
@@ -95,7 +112,6 @@ export class MenuScene extends Phaser.Scene {
       repeat: -1,
       ease: 'Quad.easeIn',
       onYoyo: () => {
-        // Impact squash
         this.tweens.add({
           targets: heroBall,
           scaleX: 2.1,
@@ -120,7 +136,7 @@ export class MenuScene extends Phaser.Scene {
     });
 
     // Interactive Start Button
-    const startBtn = this.add.container(width / 2, 360);
+    const startBtn = this.add.container(width / 2, 355);
     const btnBg = this.add.graphics();
     btnBg.fillStyle(0xe11d48, 1);
     btnBg.fillRoundedRect(-140, -25, 280, 50, 12);
@@ -165,30 +181,30 @@ export class MenuScene extends Phaser.Scene {
       btnBg.strokeRoundedRect(-140, -25, 280, 50, 12);
     });
 
-    startBtn.on('pointerdown', () => this.startGame(this.selectedLevel));
+    startBtn.on('pointerdown', () => this.handleStartClick());
 
     // Interactive Level Selector (Levels 1 - 12)
     const levelSelectorContainer = this.add.container(width / 2, 420);
     const levelSelectorBg = this.add.graphics();
     levelSelectorBg.fillStyle(0x0f172a, 0.7);
-    levelSelectorBg.fillRoundedRect(-120, -16, 240, 32, 8);
+    levelSelectorBg.fillRoundedRect(-135, -16, 270, 32, 8);
     levelSelectorBg.lineStyle(1, 0x334155, 0.8);
-    levelSelectorBg.strokeRoundedRect(-120, -16, 240, 32, 8);
+    levelSelectorBg.strokeRoundedRect(-135, -16, 270, 32, 8);
 
-    const levelText = this.add.text(0, 0, `SELECT LEVEL: ${this.selectedLevel} / 12`, {
+    this.levelText = this.add.text(0, 0, `SELECT LEVEL: ${this.selectedLevel} / 12`, {
       fontFamily: 'system-ui, -apple-system, sans-serif',
       fontSize: '13px',
       fontStyle: 'bold',
       color: '#38bdf8',
     }).setOrigin(0.5);
 
-    const prevBtn = this.add.text(-95, 0, '◀', {
+    const prevBtn = this.add.text(-110, 0, '◀', {
       fontFamily: 'system-ui, -apple-system, sans-serif',
       fontSize: '16px',
       color: '#ffffff',
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
 
-    const nextBtn = this.add.text(95, 0, '▶', {
+    const nextBtn = this.add.text(110, 0, '▶', {
       fontFamily: 'system-ui, -apple-system, sans-serif',
       fontSize: '16px',
       color: '#ffffff',
@@ -197,20 +213,18 @@ export class MenuScene extends Phaser.Scene {
     prevBtn.on('pointerdown', (p: Phaser.Input.Pointer) => {
       p.event.stopPropagation();
       this.selectedLevel = this.selectedLevel > 1 ? this.selectedLevel - 1 : 12;
-      levelText.setText(`SELECT LEVEL: ${this.selectedLevel} / 12`);
-      this.startPromptText?.setText(`PLAY LEVEL ${this.selectedLevel}`);
+      this.updateLevelDisplay();
       soundManager.playBounce(0.4);
     });
 
     nextBtn.on('pointerdown', (p: Phaser.Input.Pointer) => {
       p.event.stopPropagation();
       this.selectedLevel = this.selectedLevel < 12 ? this.selectedLevel + 1 : 1;
-      levelText.setText(`SELECT LEVEL: ${this.selectedLevel} / 12`);
-      this.startPromptText?.setText(`PLAY LEVEL ${this.selectedLevel}`);
+      this.updateLevelDisplay();
       soundManager.playBounce(0.4);
     });
 
-    levelSelectorContainer.add([levelSelectorBg, prevBtn, nextBtn, levelText]);
+    levelSelectorContainer.add([levelSelectorBg, prevBtn, nextBtn, this.levelText]);
 
     // Controls Info Guide
     const controlsGuide = this.add.text(
@@ -254,9 +268,78 @@ export class MenuScene extends Phaser.Scene {
     });
 
     // Global Key Listener to start with Space / Enter
-    this.input.keyboard?.on('keydown-SPACE', () => this.startGame(this.selectedLevel));
-    this.input.keyboard?.on('keydown-ENTER', () => this.startGame(this.selectedLevel));
-    this.input.keyboard?.on('keydown-UP', () => this.startGame(this.selectedLevel));
+    this.input.keyboard?.on('keydown-SPACE', () => this.handleStartClick());
+    this.input.keyboard?.on('keydown-ENTER', () => this.handleStartClick());
+    this.input.keyboard?.on('keydown-UP', () => this.handleStartClick());
+
+    // Load cloud storage save data
+    this.loadCloudSaveData();
+  }
+
+  /**
+   * Loads highest unlocked level and current/high score from Cloud Storage
+   */
+  private async loadCloudSaveData(): Promise<void> {
+    const platform = PlatformManager.getInstance();
+    try {
+      const [savedLevel, savedCurrentScore, savedHighestScore] = await Promise.all([
+        platform.loadData('highestUnlockedLevel'),
+        platform.loadData('currentScore'),
+        platform.loadData('highestScore'),
+      ]);
+
+      if (savedLevel && typeof savedLevel === 'number') {
+        this.highestUnlockedLevel = Math.max(1, Math.min(12, savedLevel));
+        this.selectedLevel = this.highestUnlockedLevel;
+      }
+
+      if (savedHighestScore !== null && savedHighestScore !== undefined) {
+        this.highestScore = Number(savedHighestScore) || 0;
+      }
+
+      if (savedCurrentScore !== null && savedCurrentScore !== undefined) {
+        this.currentScore = Number(savedCurrentScore) || 0;
+      }
+
+      this.updateScoreBadge();
+      this.updateLevelDisplay();
+    } catch (err) {
+      console.warn('Failed to load cloud save data:', err);
+      this.updateScoreBadge();
+      this.updateLevelDisplay();
+    }
+  }
+
+  private updateScoreBadge(): void {
+    if (!this.scoreBadgeText) return;
+    this.scoreBadgeText.setText(
+      `🏆 Best: ${this.highestScore}  ·  Score: ${this.currentScore}  ·  Unlocked: Lvl ${this.highestUnlockedLevel}/12`
+    );
+    this.scoreBadgeText.setColor('#38bdf8');
+  }
+
+  private updateLevelDisplay(): void {
+    if (!this.levelText || !this.startPromptText) return;
+
+    const isLocked = this.selectedLevel > this.highestUnlockedLevel;
+    if (isLocked) {
+      this.levelText.setText(`LEVEL ${this.selectedLevel} / 12  🔒 LOCKED`);
+      this.levelText.setColor('#ef4444');
+      this.startPromptText.setText(`BEAT LEVEL ${this.selectedLevel - 1} FIRST`);
+    } else {
+      this.levelText.setText(`SELECT LEVEL: ${this.selectedLevel} / 12`);
+      this.levelText.setColor('#38bdf8');
+      this.startPromptText.setText(`PLAY LEVEL ${this.selectedLevel}`);
+    }
+  }
+
+  private handleStartClick(): void {
+    if (this.selectedLevel > this.highestUnlockedLevel) {
+      soundManager.playHurt();
+      this.cameras.main.shake(120, 0.008);
+      return;
+    }
+    this.startGame(this.selectedLevel);
   }
 
   private startGame(levelNumber: number = 1): void {

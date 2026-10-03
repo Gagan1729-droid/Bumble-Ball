@@ -21,10 +21,21 @@ export interface IPlatform {
    * Signals that loading is complete and starts the gameplay session.
    */
   startGame(): Promise<void>;
+
+  /**
+   * Saves game data to cloud storage across devices.
+   */
+  saveData(key: string, value: any): Promise<void>;
+
+  /**
+   * Loads game data from cloud storage. Returns null if key does not exist.
+   */
+  loadData(key: string): Promise<any>;
 }
 
 /**
  * Facebook Instant Games Platform Implementation
+ * Uses FBInstant.player.setDataAsync() and FBInstant.player.getDataAsync()
  */
 export class FacebookPlatform implements IPlatform {
   public async initialize(): Promise<void> {
@@ -55,23 +66,85 @@ export class FacebookPlatform implements IPlatform {
       }
     }
   }
+
+  /**
+   * Saves data to Facebook Instant Games cloud storage via FBInstant.player.setDataAsync
+   */
+  public async saveData(key: string, value: any): Promise<void> {
+    // Save to local storage as fallback cache
+    this.saveLocalFallback(key, value);
+
+    if (typeof FBInstant !== 'undefined' && FBInstant.player?.setDataAsync) {
+      try {
+        await FBInstant.player.setDataAsync({ [key]: value });
+        if (FBInstant.player.flushDataAsync) {
+          await FBInstant.player.flushDataAsync();
+        }
+      } catch (err) {
+        console.warn(`FacebookPlatform.saveData error for key "${key}":`, err);
+      }
+    }
+  }
+
+  /**
+   * Loads data from Facebook Instant Games cloud storage via FBInstant.player.getDataAsync
+   */
+  public async loadData(key: string): Promise<any> {
+    if (typeof FBInstant !== 'undefined' && FBInstant.player?.getDataAsync) {
+      try {
+        const data = await FBInstant.player.getDataAsync([key]);
+        if (data && data[key] !== undefined && data[key] !== null) {
+          return data[key];
+        }
+      } catch (err) {
+        console.warn(`FacebookPlatform.loadData error for key "${key}":`, err);
+      }
+    }
+    return this.loadLocalFallback(key);
+  }
+
+  private saveLocalFallback(key: string, value: any): void {
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.setItem(`bumble_fb_${key}`, JSON.stringify(value));
+      }
+    } catch (e) {
+      // Ignore quota errors in restricted environments
+    }
+  }
+
+  private loadLocalFallback(key: string): any {
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        const item = window.localStorage.getItem(`bumble_fb_${key}`);
+        if (item !== null) {
+          return JSON.parse(item);
+        }
+      }
+    } catch (e) {
+      // Ignore
+    }
+    return null;
+  }
 }
 
 /**
  * YouTube Playables Platform Implementation
+ * Uses Google's provided state saving API: window.ytgame.game.saveData / loadData
  */
 export class YouTubePlatform implements IPlatform {
+  private cache: Record<string, any> = {};
+  private cacheLoaded: boolean = false;
+
   public async initialize(): Promise<void> {
-    // YouTube Playables initializes via its loaded script on window.ytgame
     if (typeof window !== 'undefined' && (window as any).ytgame) {
       console.log('YouTube Playables SDK detected');
     }
-    return Promise.resolve();
+    await this.ensureCacheLoaded();
   }
 
   public setLoadingProgress(percentage: number): void {
     const clamped = Math.max(0, Math.min(100, Math.floor(percentage)));
-    // If loading reaches 100%, notify YouTube Playables first frame readiness if available
     if (clamped === 100 && typeof window !== 'undefined' && (window as any).ytgame?.game?.firstFrameReady) {
       (window as any).ytgame.game.firstFrameReady();
     }
@@ -83,14 +156,80 @@ export class YouTubePlatform implements IPlatform {
       if (yt.firstFrameReady) yt.firstFrameReady();
       if (yt.gameReady) yt.gameReady();
     }
-    return Promise.resolve();
+  }
+
+  private async ensureCacheLoaded(): Promise<void> {
+    if (this.cacheLoaded) return;
+    try {
+      if (typeof window !== 'undefined' && (window as any).ytgame?.game?.loadData) {
+        const jsonStr = await (window as any).ytgame.game.loadData();
+        if (jsonStr && typeof jsonStr === 'string') {
+          this.cache = JSON.parse(jsonStr) || {};
+        }
+      }
+    } catch (err) {
+      console.warn('YouTubePlatform loadData error during initial cache fill:', err);
+    }
+    this.cacheLoaded = true;
+  }
+
+  /**
+   * Saves data to YouTube Playables state cloud storage via ytgame.game.saveData
+   */
+  public async saveData(key: string, value: any): Promise<void> {
+    await this.ensureCacheLoaded();
+    this.cache[key] = value;
+    this.saveLocalFallback(key, value);
+
+    if (typeof window !== 'undefined' && (window as any).ytgame?.game?.saveData) {
+      try {
+        const jsonStr = JSON.stringify(this.cache);
+        await (window as any).ytgame.game.saveData(jsonStr);
+      } catch (err) {
+        console.warn(`YouTubePlatform.saveData error for key "${key}":`, err);
+      }
+    }
+  }
+
+  /**
+   * Loads data from YouTube Playables state cloud storage via ytgame.game.loadData
+   */
+  public async loadData(key: string): Promise<any> {
+    await this.ensureCacheLoaded();
+    if (this.cache[key] !== undefined && this.cache[key] !== null) {
+      return this.cache[key];
+    }
+    return this.loadLocalFallback(key);
+  }
+
+  private saveLocalFallback(key: string, value: any): void {
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.setItem(`bumble_yt_${key}`, JSON.stringify(value));
+      }
+    } catch (e) {
+      // Ignore
+    }
+  }
+
+  private loadLocalFallback(key: string): any {
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        const item = window.localStorage.getItem(`bumble_yt_${key}`);
+        if (item !== null) {
+          return JSON.parse(item);
+        }
+      }
+    } catch (e) {
+      // Ignore
+    }
+    return null;
   }
 }
 
 /**
  * Local / Standalone Platform Dummy Implementation
- * Resolves immediately so that local development, preview servers, and testing environments
- * operate smoothly without SDK dependencies.
+ * Uses browser localStorage for persistent state saving during development.
  */
 export class LocalPlatform implements IPlatform {
   public async initialize(): Promise<void> {
@@ -103,6 +242,31 @@ export class LocalPlatform implements IPlatform {
 
   public async startGame(): Promise<void> {
     return Promise.resolve();
+  }
+
+  public async saveData(key: string, value: any): Promise<void> {
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.setItem(`bumble_ball_${key}`, JSON.stringify(value));
+      }
+    } catch (e) {
+      console.warn('LocalPlatform saveData warning:', e);
+    }
+    return Promise.resolve();
+  }
+
+  public async loadData(key: string): Promise<any> {
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        const item = window.localStorage.getItem(`bumble_ball_${key}`);
+        if (item !== null) {
+          return JSON.parse(item);
+        }
+      }
+    } catch (e) {
+      console.warn('LocalPlatform loadData warning:', e);
+    }
+    return Promise.resolve(null);
   }
 }
 
